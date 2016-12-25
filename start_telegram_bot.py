@@ -26,4 +26,4 @@ job_minute = Job(callback_minute, 60.0)
 job_queue.put(job_minute, next_t=0.0)
 
 updater.start_polling()
-updater.idle()
+updater.stop()
