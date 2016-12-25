@@ -3,7 +3,6 @@ import argparse
 import ConfigParser
 import logging
 import sys
-print sys.path
 from telegram.ext import Job, Updater, CommandHandler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -26,14 +25,13 @@ Address: {HOSTADDRESS}
 Info: {HOSTOUTPUT}
 
 Date/Time: {LONGDATETIME}
-"""
-#"".format(NOTIFICATIONTYPE=env['NOTIFICATIONTYPE'],
-#           HOSTNAME=env['HOSTNAME'],
-#           HOSTSTATE=env['HOSTSTATE'],
-#           HOSTADDRESS=env['HOSTADDRESS'],
-#           HOSTOUTPUT=env['HOSTOUTPUT'],
-#           LONGDATETIME=env['LONGDATETIME']
-#           )
+""".format(NOTIFICATIONTYPE=env.get('NAGIOS_NOTIFICATIONTYPE'),
+            HOSTNAME=env.get('NAGIOS_HOSTNAME'),
+            HOSTSTATE=env.get('NAGIOS_HOSTSTATE'),
+            HOSTADDRESS=env.get('NAGIOS_HOSTADDRESS'),
+            HOSTOUTPUT=env.get('NAGIOS_HOSTOUTPUT'),
+            LONGDATETIME=env.get('NAGIOS_LONGDATETIME')
+            )
 
 def callback_minute(bot, job):
     bot.sendMessage(chat_id=config.get('ADMIN', 'id'), 
