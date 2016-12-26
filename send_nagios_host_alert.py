@@ -30,7 +30,7 @@ Date/Time: {LONGDATETIME}
             HOSTNAME=env.get('NAGIOS_HOSTNAME'),
             HOSTSTATE=env.get('NAGIOS_HOSTSTATE'),
             HOSTADDRESS=env.get('NAGIOS_HOSTADDRESS'),
-            HOSTOUTPUT=env.get('NAGIOS_SERVICEOUTPUT'),
+            HOSTOUTPUT=env.get('NAGIOS_HOSTOUTPUT'),
             LONGDATETIME=env.get('NAGIOS_LONGDATETIME')
             )
 
