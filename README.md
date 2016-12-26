@@ -2,7 +2,8 @@
 There are 2 goals in here: Create a bot to communicate with at home, provide a way for nagios to send email alerts via telegram.
 
 ### Requirements ###
-requirements.txt provides all the requirements. This script is based on the python-telegram-bot API written in python.
+* requirements.txt provides all the requirements. This script is based on the python-telegram-bot API written in python.
+* Make sure to chmod 0755 the directory so that all scripts are executable
 
 #### Description ####
 
