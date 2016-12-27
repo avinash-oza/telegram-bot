@@ -24,21 +24,29 @@ def send_nagios_alerts(bot, job):
     # Open the database
     conn = sqlite3.connect('alerts.db')
     c = conn.cursor()
+    write_cursor = conn.cursor()
     # Get the current unsent alerts
     unsent_alerts = c.execute("SELECT id date_inserted,date_sent,message_text,status FROM NAGIOS_ALERTS WHERE STATUS='UNSENT'")
+    message_str = """"""
 
     # Send the alerts which are not sent
-    for one_alert in unsent_alerts:
+    for index, one_alert in enumerate(unsent_alerts):
         # First update the alert to be SENT
         alert_id = one_alert[0]
         alert_text = one_alert[2]
-        c.execute("UPDATE NAGIOS_ALERTS SET STATUS='SENT' where id=?", (alert_id,) )
+        write_cursor.execute("UPDATE NAGIOS_ALERTS SET STATUS='SENT' where id=?", (alert_id,) )
         # Send the message after we are sure the update occured
-        bot.sendMessage(chat_id=admin_id, text=alert_text)
         # Sleep a bit to make sure we don't spam the api
+        message_str += alert_text
+        if index >= 4:
+            # Send 5 messages together at a time and then wait till the next call
+            break
+        message_str += "--------------------\n"
         print alert_text
-        time.sleep(2)
 
+    if message_str:
+        message_str += "{0} messages sent".format(index+1) # Since we start at 0
+        bot.sendMessage(chat_id=admin_id, text=message_str)
     # Commit changes and close db
     conn.commit()
     conn.close()
