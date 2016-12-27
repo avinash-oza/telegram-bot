@@ -39,6 +39,10 @@ def send_nagios_alerts(bot, job):
         print alert_text
         time.sleep(2)
 
+    # Commit changes and close db
+    conn.commit()
+    conn.close()
+
 def power_status(bot, update, args):
     ip_address = config.get('ADMIN', 'ups_ip') # the ip of the UPS server
     command_to_run = ['/usr/local/nagios/libexec/check_nrpe', '-c', 'show_ups', '-H', ip_address]
