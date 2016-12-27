@@ -24,6 +24,7 @@ def insert_new_entry(service_alert):
     # Determine how to format the string
     string_to_insert = None
     env = os.environ
+    print env
     if service_alert:
         print "Service called"
         string_to_insert = MESSAGE_TEXT.format(NOTIFICATIONTYPE=env.get('NAGIOS_NOTIFICATIONTYPE'), HOSTNAME=env.get('NAGIOS_HOSTNAME'), HOSTSTATE=env.get('NAGIOS_HOSTSTATE'),
@@ -36,7 +37,7 @@ def insert_new_entry(service_alert):
 
     conn = sqlite3.connect('alerts.db')
     c = conn.cursor()
-    c.execute('''INSERT INTO NAGIOS_ALERTS(date_inserted,message_text, status) VALUES (?, ?, 'UNSENT')''', (current_time_str, MESSAGE_TEXT) )
+    c.execute('''INSERT INTO NAGIOS_ALERTS(date_inserted,message_text, status) VALUES (?, ?, 'UNSENT')''', (current_time_str, string_to_insert) )
     conn.commit()
     conn.close()
 

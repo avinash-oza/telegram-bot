@@ -3,7 +3,7 @@ There are 2 goals in here: Create a bot to communicate with at home, provide a w
 
 ### Requirements ###
 * requirements.txt provides all the requirements. This script is based on the python-telegram-bot API written in python.
-* Make sure to chmod 0755 the directory so that all scripts are executable
+* Make sure to chmod 0777 the directory so that all scripts are executable and the sql lite DB can be read
 
 #### Description ####
 
