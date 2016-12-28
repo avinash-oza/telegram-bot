@@ -10,7 +10,7 @@ There are 2 goals in here: Create a bot to communicate with at home, provide a w
  * start_telegram_bot.py : Script that holds the bot and will respond to requests and send out alerts. It periodically reads from the SQLLite database to see if there are any unsent alerts.
  * insert_[service|host]_alert.sh : Wrapper script for `insert_alert.py` which uses python in order to insert the entry into the SQLLite db.
  
- ### Running ###
+### Running ###
  Currently this requires a lot of packages as it is in python 2.7:
  * Create a virtualenv (strongly reccomended)
  * pip install -r requirements.txt
