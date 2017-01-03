@@ -58,7 +58,7 @@ def power_status(bot, update, args):
     bot.sendMessage(chat_id=update.message.chat_id, text=text_output)
 
 if __name__ == '__main__':
-    power_status_handler = CommandHandler('powerStatus', power_status, pass_args=True)
+    power_status_handler = CommandHandler('powerstatus', power_status, pass_args=True)
     dispatcher.add_handler(power_status_handler)
 
     # Create the job to check if we have any nagios alerts to send
