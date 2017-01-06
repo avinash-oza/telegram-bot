@@ -3,7 +3,11 @@ import os
 import sqlite3
 import argparse
 import datetime
+import mysql.connector
+import ConfigParser
 
+config = ConfigParser.ConfigParser()
+config.read('bot.config')
 
 MESSAGE_TEXT="""
 ***** Nagios *****
@@ -35,9 +39,17 @@ def insert_new_entry(service_alert):
         string_to_insert = MESSAGE_TEXT.format(NOTIFICATIONTYPE=env.get('NAGIOS_NOTIFICATIONTYPE'), HOSTNAME=env.get('NAGIOS_HOSTNAME'), HOSTSTATE=env.get('NAGIOS_HOSTSTATE'),
                                                         HOSTADDRESS=env.get('NAGIOS_HOSTADDRESS'), HOSTOUTPUT=env.get('NAGIOS_HOSTOUTPUT'), LONGDATETIME=env.get('NAGIOS_LONGDATETIME'))
 
-    conn = sqlite3.connect('alerts.db')
-    c = conn.cursor()
-    c.execute('''INSERT INTO NAGIOS_ALERTS(date_inserted,message_text, status) VALUES (?, ?, 'UNSENT')''', (current_time_str, string_to_insert) )
+    db_host_name = config.get('DATABASE', 'host')
+    db_user_name = config.get('DATABASE', 'user')
+    db_password = config.get('DATABASE', 'password')
+    database_name = config.get('DATABASE', 'database')
+
+    conn =  mysql.connector.connect(user=db_user_name,password=db_password,host=db_host_name, database=database_name)
+    cursor = conn.cursor(buffered=True)
+
+    query =  """INSERT INTO `nagios_alerts`(`message_text`) VALUES ("{0}")""".format(string_to_insert)
+    cursor.execute(query )
+    # Commit the changes
     conn.commit()
     conn.close()
 
