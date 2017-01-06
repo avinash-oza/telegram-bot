@@ -3,6 +3,7 @@ import logging
 import subprocess
 import time
 import sqlite3
+import mysql.connector
 import collections
 from telegram.ext import Job, Updater, CommandHandler
 
@@ -22,19 +23,25 @@ def send_nagios_alerts(bot, job):
     admin_id = config.get('ADMIN', 'id')
 
     # Open the database
-    conn = sqlite3.connect('alerts.db')
-    c = conn.cursor()
-    write_cursor = conn.cursor()
+    db_host_name = config.get('DATABASE', 'host')
+    db_user_name = config.get('DATABASE', 'user')
+    db_password = config.get('DATABASE', 'password')
+    database_name = config.get('DATABASE', 'database')
+
+    conn =  mysql.connector.connect(user=db_user_name,password=db_password,host=db_host_name, database=database_name)
+    cursor = conn.cursor(buffered=True)
+    c = conn.cursor(buffered=True)
+    write_cursor = conn.cursor(buffered=True)
     # Get the current unsent alerts
-    unsent_alerts = c.execute("SELECT id date_inserted,date_sent,message_text,status FROM NAGIOS_ALERTS WHERE STATUS='UNSENT'")
+    c.execute("SELECT id date_inserted,date_sent,message_text,status FROM nagios_alerts WHERE STATUS='UNSENT'")
     message_str = """"""
 
     # Send the alerts which are not sent
-    for index, one_alert in enumerate(unsent_alerts):
+    for index, one_alert in enumerate(c):
         # First update the alert to be SENT
         alert_id = one_alert[0]
         alert_text = one_alert[2]
-        write_cursor.execute("UPDATE NAGIOS_ALERTS SET STATUS='SENT' where id=?", (alert_id,) )
+        write_cursor.execute("UPDATE nagios_alerts SET status='SENT', date_sent = NOW() where id= {0}".format(alert_id))
         # Send the message after we are sure the update occured
         # Sleep a bit to make sure we don't spam the api
         message_str += alert_text
