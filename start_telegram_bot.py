@@ -32,12 +32,15 @@ def send_nagios_alerts(bot, job):
     cursor = conn.cursor(buffered=True)
     c = conn.cursor(buffered=True)
     write_cursor = conn.cursor(buffered=True)
-    # Get the current unsent alerts
-    c.execute("SELECT id date_inserted,date_sent,message_text,status FROM nagios_alerts WHERE STATUS='UNSENT'")
+    # Get the current unsent alerts. Make sure to send them in order
+    c.execute("SELECT id date_inserted,date_sent,message_text,status FROM nagios_alerts WHERE STATUS='UNSENT' ORDER BY id ASC")
+    # Enumerate the counter so we know how many results returned
+    results = [one_result for one_result in c]
+    total_count_of_alerts = len(results)
     message_str = """"""
 
     # Send the alerts which are not sent
-    for index, one_alert in enumerate(c):
+    for index, one_alert in enumerate(results):
         # First update the alert to be SENT
         alert_id = one_alert[0]
         alert_text = one_alert[2]
@@ -52,7 +55,7 @@ def send_nagios_alerts(bot, job):
         print alert_text
 
     if message_str:
-        message_str += "{0} messages sent".format(index+1) # Since we start at 0
+        message_str += "{0}/{1} messages sent".format(index+1, total_count_of_alerts) # Since we start at 0
         bot.sendMessage(chat_id=admin_id, text=message_str)
     # Commit changes and close db
     conn.commit()
@@ -60,7 +63,7 @@ def send_nagios_alerts(bot, job):
 
 def power_status(bot, update, args):
     ip_address = config.get('ADMIN', 'ups_ip') # the ip of the UPS server
-    command_to_run = ['/usr/local/nagios/libexec/check_nrpe', '-c', 'show_ups', '-H', ip_address]
+    command_to_run = ['/usr/lib/nagios/plugins/show_ups']
     text_output = subprocess.check_output(command_to_run)
     bot.sendMessage(chat_id=update.message.chat_id, text=text_output)
 
