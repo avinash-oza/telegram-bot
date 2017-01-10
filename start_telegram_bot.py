@@ -26,6 +26,8 @@ class TelegramBot(object):
         """
         Retrieves alerts and sends them
         """
+        # Before starting, clear out any alerts we were waiting for acknoledgement on
+        self.key_to_alert_id_mapping[:] = []
         admin_id = self.config.get('ADMIN', 'id')
 
         # Open the database
@@ -53,7 +55,7 @@ class TelegramBot(object):
             host_name = one_alert[4]
             service_name = one_alert[5]
             notification_type = one_alert[6]
-#           write_cursor.execute("UPDATE nagios_alerts SET status='SENT', date_sent = NOW() where id= {0}".format(alert_id))
+            write_cursor.execute("UPDATE nagios_alerts SET status='SENT', date_sent = NOW() where id= {0}".format(alert_id))
             # Send the message after we are sure the update occured
             message_str += alert_text
             # Add the alert to lists of alerts we can acknowledge along with a short string
@@ -125,6 +127,7 @@ class TelegramBot(object):
         one_day = 60 * 60 * 24 # represents 24 hours
         end_time = current_time + one_day # represents 24 hours
 
+        #TODO: This needs to be cleaned and commented more
         result = cursor.fetchone()
         command_string = """[{0}] """.format(current_time)
         host_name = result[0]
@@ -132,11 +135,13 @@ class TelegramBot(object):
         ACK_COMMAND = 'SCHEDULE_SVC_DOWNTIME'
         COMMENT_COMMAND = 'ADD_SVC_COMMENT'
         comment = 'DOWNTIME SCHEDULED VIA TELEGRAM'
-        command_string += ';'.join([ACK_COMMAND, host_name, service_name, str(current_time), str(end_time), '1', '0', str(one_day), 'nagiosadmin', comment])
-        comment_string = """[{0}] {1};{2}""".format(current_time, COMMENT_COMMAND, ';'.join([host_name, service_name, '1', 'nagiosadmin', comment]))
-        command_to_run = ['echo {0} > /var/lib/nagios3/rw/nagios.cmd'.format(command_string)]
-        text_output = subprocess.check_output(command_to_run)
-        print comment_string
+        host_and_service_name = ';'.join([host_name, service_name])
+        command_string += ';'.join([ACK_COMMAND, host_and_service_name, str(current_time), str(end_time), '1', '0', str(one_day), 'nagiosadmin', comment])
+        comment_string = """[{0}] {1};{2}""".format(current_time, COMMENT_COMMAND, ';'.join([host_and_service_name, '1', 'nagiosadmin', comment]))
+        command_to_run = """echo '{0}' > /var/lib/nagios3/rw/nagios.cmd"""
+        text_output = subprocess.check_output(command_to_run.format(command_string), shell=True)
+        text_output = subprocess.check_output(command_to_run.format(comment_string), shell=True)
+        bot.sendMessage(chat_id=update.message.chat_id, text="Marked {0} for 1 day of downtime".format(host_and_service_name))
 
     def setup(self):
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
@@ -146,8 +151,8 @@ class TelegramBot(object):
         self.dispatcher.add_handler(acknowledge_alert_handler)
 
         # Create the job to check if we have any nagios alerts to send
-        job_minute = Job(self.send_nagios_alerts, 60.0)
-        self.job_queue.put(job_minute, next_t=0.0)
+        send_alerts_job = Job(self.send_nagios_alerts, 90.0)
+        self.job_queue.put(send_alerts_job, next_t=0.0)
 
     def run(self):
         self.setup()
