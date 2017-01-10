@@ -91,8 +91,8 @@ class TelegramBot(object):
 
     def power_status(self, bot, update, args):
         ip_address = self.config.get('ADMIN', 'ups_ip') # the ip of the UPS server
-        command_to_run = ['/usr/lib/nagios/plugins/show_ups']
-        text_output = subprocess.check_output(command_to_run)
+        command_to_run = ['/usr/lib/nagios/plugins/check_nrpe -H {0} -c show_ups'.format(ip_address)]
+        text_output = subprocess.check_output(command_to_run, shell=True)
         bot.sendMessage(chat_id=update.message.chat_id, text=text_output)
 
     def acknowledge_alert(self, bot, update, args):
