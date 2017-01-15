@@ -1,5 +1,7 @@
 import ConfigParser
 import logging
+import traceback
+import sys
 import subprocess
 import time
 import datetime
@@ -8,8 +10,11 @@ import mysql.connector
 import collections
 from telegram.ext import Job, Updater, CommandHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
+from telegram.keyboardbutton import KeyboardButton
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 class TelegramBot(object):
 
@@ -29,6 +34,7 @@ class TelegramBot(object):
         # Before starting, clear out any alerts we were waiting for acknoledgement on
         self.key_to_alert_id_mapping[:] = []
         admin_id = self.config.get('ADMIN', 'id')
+        logger.info("Getting alerts from db")
 
         # Open the database
         db_host_name = self.config.get('DATABASE', 'host')
@@ -45,6 +51,7 @@ class TelegramBot(object):
         # Enumerate the counter so we know how many results returned
         results = [one_result for one_result in c]
         total_count_of_alerts = len(results)
+        logger.info("Got {0} results".format(total_count_of_alerts))
         message_str = """"""
 
         # Send the alerts which are not sent
@@ -56,6 +63,7 @@ class TelegramBot(object):
             service_name = one_alert[5]
             notification_type = one_alert[6]
             write_cursor.execute("UPDATE nagios_alerts SET status='SENT', date_sent = NOW() where id= {0}".format(alert_id))
+            logger.info("Update alert id {0} in the db for alerts".format(alert_id))
             # Send the message after we are sure the update occured
             message_str += alert_text
             # Add the alert to lists of alerts we can acknowledge along with a short string
@@ -75,16 +83,17 @@ class TelegramBot(object):
                 acknowledge_string = """ALERTS THAT CAN BE ACKNOWLEDGED: \n"""
                 options = [] # Stores the keys for the keyboard reply
                 for index, one_alert in enumerate(self.key_to_alert_id_mapping):
-                    options.append(' '.join(['/acknowledge',str(index)])) # Store the key for the keyboard
+                    key_string = ' '.join(['/acknowledge',str(index)])
+                    options.append([ key_string ]) # Store the key for the keyboard
                     acknowledge_string += "{0} : {1} \n".format(index, one_alert[1])
 
                 # Send the message with the keyboard
-                keyboard_options = [ options ]
-                reply_keyboard = ReplyKeyboardMarkup(keyboard_options, one_time_keyboard=True)
+                reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
                 bot.sendMessage(chat_id=admin_id, text=acknowledge_string, reply_markup=reply_keyboard)
 
 
 
+        logger.info("Finished sending alerts")
         # Commit changes and close db
         conn.commit()
         conn.close()
@@ -92,13 +101,17 @@ class TelegramBot(object):
     def power_status(self, bot, update, args):
         ip_address = self.config.get('ADMIN', 'ups_ip') # the ip of the UPS server
         command_to_run = ['/usr/lib/nagios/plugins/check_nrpe -H {0} -c show_ups'.format(ip_address)]
+
+        logger.info("Got request to check power status")
         text_output = subprocess.check_output(command_to_run, shell=True)
         bot.sendMessage(chat_id=update.message.chat_id, text=text_output)
+        logger.info("Sent message for power status")
 
     def acknowledge_alert(self, bot, update, args):
         """Takes the given alert and sends a request to acknowledge it.
         For now we just schedule 1 day of downtime so that it is not forgotten
         """
+        logger.info("Got request to acknolwedge id {0}".format(args))
         if not args:
             # did not pass us an alert id
             bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
@@ -108,6 +121,7 @@ class TelegramBot(object):
             alert_id, _ = self.key_to_alert_id_mapping[int(args[0])]
         except IndexError:
             # Some how the key they sent does not exist
+             logger.info("Did not find alert id {0}".format(args[0]))
              bot.sendMessage(chat_id=update.message.chat_id, text="Key does not exist")
              return
         # Find the alert id if it exists
