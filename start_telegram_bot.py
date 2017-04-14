@@ -1,5 +1,6 @@
 import ConfigParser
 import logging
+import random
 import traceback
 import sys
 import subprocess
@@ -25,7 +26,16 @@ class TelegramBot(object):
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
         self.key_to_alert_id_mapping = [] # Stores the list of keys that have been sent out at the latest alert
+        self.garage_codes = {} # Dictionary to hold one time codes to make sure links are not reused
+        self.garage_code_expire_job = None # job to handle expiring the codes if a garage is not selected
 
+    def sender_is_admin(self, sender_id):
+        sender_id = int(sender_id)
+        admin_id = int(self.config.get('ADMIN', 'id'))
+        logger.info("Admin id {0}, sender id {1}".format(admin_id, sender_id))
+        if sender_id == admin_id:
+            return True
+        return False
 
     def send_nagios_alerts(self, bot, job):
         """
@@ -110,6 +120,8 @@ class TelegramBot(object):
         bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
         logger.info("Sent message for power status")
 
+    
+
     def acknowledge_alert(self, bot, update, args):
         """Takes the given alert and sends a request to acknowledge it.
         For now we just schedule 1 day of downtime so that it is not forgotten
@@ -160,12 +172,106 @@ class TelegramBot(object):
         text_output = subprocess.check_output(command_to_run.format(comment_string), shell=True)
         bot.sendMessage(chat_id=update.message.chat_id, text="Marked {0} for 1 day of downtime".format(host_and_service_name))
 
+    def _get_garage_position(self, garage_name):
+        # Returns whether the garage is open or closed
+        # TODO: MOVE TO OWN SCRIPT AND HANDLE MULTIPLE GARAGES
+        # TODO: FIX USER
+
+        command_to_run = ["ssh nagios@pi2 'sudo /usr/lib/nagios/plugins/check_garage_status {0}'".format(garage_name)]
+        return subprocess.check_output(command_to_run, shell=True)
+
+    # Action for operating the garage
+    def garage(self, bot, update, args):
+        return_message = """Pick a garage (facing from the outside)"""
+        sender_id = update.message.chat_id
+        # Gives menu to select which garage to open
+        if not self.sender_is_admin(sender_id):
+            bot.sendMessage(chat_id=sender_id, text='Not authorized')
+            return
+
+        garages = ['LEFT', 'RIGHT']
+        options = [] # Stores the keys for the keyboard reply
+
+        bot.sendMessage(chat_id=sender_id, text="Getting garage status")
+
+        for one_garage in garages:
+            # create a one time "code" to store for the garage
+            random_code = random.randrange(1000, 10000000)
+            self.garage_codes[random_code] = one_garage # Make the code map to garage so we can verify
+
+            # Get current status for garage
+            current_position = self._get_garage_position(one_garage)
+            return_message += ' '.join(['\n', one_garage, current_position])
+
+            # Calculate whether to write OPEN or CLOSE
+            if 'OPEN' in current_position:
+                action = 'CLOSE'
+            else:
+                action = 'OPEN'
+
+            key_string = ' '.join(['/confirm {0}'.format(random_code), action,  str(one_garage)])
+            options.append([ key_string ]) # Store the key for the keyboard
+
+        # Send the message with the keyboard
+        reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
+        bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
+
+        # Add handler to expire the codes if we dont hear back in 10 seconds
+        def expire_codes(bot, job):
+            # Clear the dict as time expired
+            self.garage_codes = {}
+            bot.sendMessage(chat_id=sender_id, text='Timeout reached. Please start again')
+
+        # Add job to expire codes
+        self.garage_code_expire_job = Job(expire_codes, 15.0, repeat=False)
+        self.job_queue.put(self.garage_code_expire_job)
+
+    def confirm_garage_action(self, bot, update, args):
+        garage_code, action, _ = args
+        sender_id = update.message.chat_id
+
+        # See if there is a pending job to expire the codes. Stop running it if there is
+        if self.garage_code_expire_job is not None:
+            self.garage_code_expire_job.schedule_removal()
+            self.garage_code_expire_job = None
+
+        if not self.sender_is_admin(update.message.chat_id):
+            bot.sendMessage(chat_id=sender_id, text='Not authorized')
+            return
+        # Open the garage if the code matches. Use the code to find which garage
+        garage_name = self.garage_codes.get(int(garage_code))
+        logger.info("Garage codes were: {0} and garage code passed was {1}".format(self.garage_codes, garage_code))
+        if garage_name:
+            # Valid code was passed. Trigger garage
+            bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
+        else:
+            bot.sendMessage(chat_id=sender_id, text="NO GARAGE FOUND. INVALID CODE")
+            return 
+
+        # Clear codes so there is no reuse
+        self.garage_codes = {}
+
+        def send_current_status(bot, job):
+            text_to_send = "{0} status: {1}".format(garage_name.capitalize(), self._get_garage_position(garage_name))
+            bot.sendMessage(chat_id=sender_id, text=text_to_send)
+
+        # Wait to allow the door to move and send the status back
+        self.job_queue.put(Job(send_current_status, 15.0, repeat=False))
+
     def setup(self):
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
         self.dispatcher.add_handler(power_status_handler)
 
         acknowledge_alert_handler = CommandHandler('acknowledge', self.acknowledge_alert, pass_args=True)
         self.dispatcher.add_handler(acknowledge_alert_handler)
+
+
+        # Handler for opening the garage
+        garage_menu_handler = CommandHandler('garage', self.garage, pass_args=True)
+        self.dispatcher.add_handler(garage_menu_handler)
+
+        garage_menu_handler = CommandHandler('confirm', self.confirm_garage_action, pass_args=True)
+        self.dispatcher.add_handler(garage_menu_handler)
 
         # Create the job to check if we have any nagios alerts to send
         send_alerts_job = Job(self.send_nagios_alerts, 90.0)
@@ -175,7 +281,6 @@ class TelegramBot(object):
         self.setup()
         self.updater.start_polling()
         self.updater.idle()
-
 
 if __name__ == '__main__':
     telegram_bot = TelegramBot()
