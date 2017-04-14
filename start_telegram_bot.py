@@ -99,12 +99,15 @@ class TelegramBot(object):
         conn.close()
 
     def power_status(self, bot, update, args):
-        ip_address = self.config.get('ADMIN', 'ups_ip') # the ip of the UPS server
-        command_to_run = ['/usr/lib/nagios/plugins/check_nrpe -H {0} -c show_ups'.format(ip_address)]
+        arguments_to_use = ['status', 'timeleft']
+        complete_output = ""
 
         logger.info("Got request to check power status")
-        text_output = subprocess.check_output(command_to_run, shell=True)
-        bot.sendMessage(chat_id=update.message.chat_id, text=text_output)
+        for one_arg in arguments_to_use:
+            command_to_run = ['/usr/lib/nagios/plugins/check_apcupsd {0}'.format(one_arg)]
+            complete_output += subprocess.check_output(command_to_run, shell=True)
+
+        bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
         logger.info("Sent message for power status")
 
     def acknowledge_alert(self, bot, update, args):
