@@ -175,9 +175,8 @@ class TelegramBot(object):
     def _get_garage_position(self, garage_name):
         # Returns whether the garage is open or closed
         # TODO: MOVE TO OWN SCRIPT AND HANDLE MULTIPLE GARAGES
-        # TODO: FIX USER
 
-        command_to_run = ["ssh nagios@pi2 'sudo /usr/lib/nagios/plugins/check_garage_status {0}'".format(garage_name)]
+        command_to_run = ["ssh garage-door@pi2 '~/home-projects/pi-zero/check_garage_status {0}'".format(garage_name)]
         return subprocess.check_output(command_to_run, shell=True)
 
     # Action for operating the garage
@@ -225,6 +224,9 @@ class TelegramBot(object):
         # Add job to expire codes
         self.garage_code_expire_job = Job(expire_codes, 15.0, repeat=False)
         self.job_queue.put(self.garage_code_expire_job)
+
+#   def _open_garage(self, garage_name):
+#       # Actually invokes the code to open the garage
 
     def confirm_garage_action(self, bot, update, args):
         garage_code, action, _ = args
