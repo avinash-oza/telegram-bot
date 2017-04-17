@@ -235,9 +235,9 @@ class TelegramBot(object):
     def _open_garage(self, garage_name):
         # Actually invokes the code to open the garage
         command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
-        logger.info("START invoke code to trigger {0} garage".format(garage_name)
+        logger.info("START invoke code to trigger {0} garage".format(garage_name))
         _ =  subprocess.check_output(command_to_run, shell=True)
-        logger.info("FINISH invoke code to trigger {0} garage".format(garage_name)
+        logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
     def confirm_garage_action(self, bot, update, args):
         garage_code, action, _ = args
