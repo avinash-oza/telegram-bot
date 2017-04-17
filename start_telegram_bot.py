@@ -177,7 +177,14 @@ class TelegramBot(object):
         # TODO: MOVE TO OWN SCRIPT AND HANDLE MULTIPLE GARAGES
 
         command_to_run = ["ssh garage-door@pi2 '~/home-projects/pi-zero/check_garage_status {0}'".format(garage_name)]
-        return subprocess.check_output(command_to_run, shell=True)
+
+        try:
+            return subprocess.check_output(command_to_run, shell=True)
+        except subprocess.CalledProcessError as e:
+            #TODO: Expected error is an error code that is raised when garage is opened for nagios
+            return e.output
+        else:
+            return "No output recieved"
 
     # Action for operating the garage
     def garage(self, bot, update, args):
@@ -225,8 +232,12 @@ class TelegramBot(object):
         self.garage_code_expire_job = Job(expire_codes, 15.0, repeat=False)
         self.job_queue.put(self.garage_code_expire_job)
 
-#   def _open_garage(self, garage_name):
-#       # Actually invokes the code to open the garage
+    def _open_garage(self, garage_name):
+        # Actually invokes the code to open the garage
+        command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
+        logger.info("START invoke code to trigger {0} garage".format(garage_name)
+        _ =  subprocess.check_output(command_to_run, shell=True)
+        logger.info("FINISH invoke code to trigger {0} garage".format(garage_name)
 
     def confirm_garage_action(self, bot, update, args):
         garage_code, action, _ = args
@@ -245,6 +256,7 @@ class TelegramBot(object):
         logger.info("Garage codes were: {0} and garage code passed was {1}".format(self.garage_codes, garage_code))
         if garage_name:
             # Valid code was passed. Trigger garage
+            self._open_garage(garage_name)
             bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
         else:
             bot.sendMessage(chat_id=sender_id, text="NO GARAGE FOUND. INVALID CODE")
