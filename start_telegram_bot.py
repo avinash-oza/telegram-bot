@@ -9,7 +9,8 @@ import datetime
 import sqlite3
 import mysql.connector
 import collections
-from telegram.ext import Job, Updater, CommandHandler
+import pprint
+from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 from telegram.keyboardbutton import KeyboardButton
 
@@ -215,7 +216,7 @@ class TelegramBot(object):
             else:
                 action = 'OPEN'
 
-            key_string = ' '.join(['/confirm {0}'.format(random_code), action,  str(one_garage)])
+            key_string = ' '.join(['confirm {0}'.format(random_code), action,  str(one_garage)])
             options.append([ key_string ]) # Store the key for the keyboard
 
         # Send the message with the keyboard
@@ -239,8 +240,9 @@ class TelegramBot(object):
         _ =  subprocess.check_output(command_to_run, shell=True)
         logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
-    def confirm_garage_action(self, bot, update, args):
-        garage_code, action, _ = args
+    def confirm_garage_action(self, bot, update):
+        # TODO: Clean this up. Take everything after confirm
+        garage_code, action, _ = update.message.text.split(' ')[1:]
         sender_id = update.message.chat_id
 
         # See if there is a pending job to expire the codes. Stop running it if there is
@@ -272,6 +274,11 @@ class TelegramBot(object):
         # Wait to allow the door to move and send the status back
         self.job_queue.put(Job(send_current_status, 15.0, repeat=False))
 
+    def unknown_handler(self, bot, update):
+        logger.warn("UNHANDLED MESSAGE FROM: {0}".format(update.message.chat_id))
+        pprint.pprint(update.to_dict())
+        logger.warn("----------------")
+
     def setup(self):
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
         self.dispatcher.add_handler(power_status_handler)
@@ -282,10 +289,23 @@ class TelegramBot(object):
 
         # Handler for opening the garage
         garage_menu_handler = CommandHandler('garage', self.garage, pass_args=True)
+#       garage_menu_handler = MessageHandler('garage', self.garage)
         self.dispatcher.add_handler(garage_menu_handler)
 
-        garage_menu_handler = CommandHandler('confirm', self.confirm_garage_action, pass_args=True)
+        #TODO: Clean this up and move somewhere
+        class TestFilter(BaseFilter):
+            def filter(self, message):
+                return message.text.split(' ')[0].lower() == 'confirm'
+        test_filter = TestFilter()
+
+#       garage_menu_handler = CommandHandler('confirm', self.confirm_garage_action, pass_args=True)
+        garage_menu_handler = MessageHandler(test_filter, self.confirm_garage_action)
         self.dispatcher.add_handler(garage_menu_handler)
+
+        # Add handler for messages we arent handling
+        unknown_handler = MessageHandler(Filters.command | Filters.text, self.unknown_handler)
+        self.dispatcher.add_handler(unknown_handler)
+
 
         # Create the job to check if we have any nagios alerts to send
         send_alerts_job = Job(self.send_nagios_alerts, 90.0)
