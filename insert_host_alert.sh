@@ -1,6 +1,5 @@
 #!/bin/bash
-cd /home/asterisk/telegram-bot
-source /etc/bash_completion.d/virtualenvwrapper
-source /home/asterisk/.virtualenvs/telegram-bot/bin/activate
-python insert_alert.py &> /tmp/testing.log
+source /home/telegram-bot/telegram-virtual-env/bin/activate
+cd /home/telegram-bot/telegram-bot
+python insert_alert.py
 deactivate
