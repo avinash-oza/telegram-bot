@@ -10,12 +10,21 @@ import sqlite3
 import mysql.connector
 import collections
 import pprint
-from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter
+from enum import Enum
+from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 from telegram.keyboardbutton import KeyboardButton
 
+from custom_filters import ConfirmFilter
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+# Declare states for garage door opening
+class GarageConversationState(Enum):
+    CONFIRM = 1
+
 
 
 class TelegramBot(object):
@@ -233,11 +242,14 @@ class TelegramBot(object):
         self.garage_code_expire_job = Job(expire_codes, 15.0, repeat=False)
         self.job_queue.put(self.garage_code_expire_job)
 
+        # Set the conversation to go to the next state
+        return GarageConversationState.CONFIRM
+
     def _open_garage(self, garage_name):
         # Actually invokes the code to open the garage
         command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
         logger.info("START invoke code to trigger {0} garage".format(garage_name))
-        _ =  subprocess.check_output(command_to_run, shell=True)
+#       _ =  subprocess.check_output(command_to_run, shell=True)
         logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
     def confirm_garage_action(self, bot, update):
@@ -252,7 +264,7 @@ class TelegramBot(object):
 
         if not self.sender_is_admin(update.message.chat_id):
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
-            return
+            return ConversationHandler.END
         # Open the garage if the code matches. Use the code to find which garage
         garage_name = self.garage_codes.get(int(garage_code))
         logger.info("Garage codes were: {0} and garage code passed was {1}".format(self.garage_codes, garage_code))
@@ -262,7 +274,7 @@ class TelegramBot(object):
             bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
         else:
             bot.sendMessage(chat_id=sender_id, text="NO GARAGE FOUND. INVALID CODE")
-            return 
+            return ConversationHandler.END
 
         # Clear codes so there is no reuse
         self.garage_codes = {}
@@ -274,10 +286,20 @@ class TelegramBot(object):
         # Wait to allow the door to move and send the status back
         self.job_queue.put(Job(send_current_status, 15.0, repeat=False))
 
+        return ConversationHandler.END
+
     def unknown_handler(self, bot, update):
         logger.warn("UNHANDLED MESSAGE FROM: {0}".format(update.message.chat_id))
         pprint.pprint(update.to_dict())
         logger.warn("----------------")
+        if update.message:
+            chat_id = update.message.chat_id
+        else:
+            chat_id = update.channel.chat_id
+
+        bot.sendMessage(chat_id=chat_id, text="Did not understand message")
+
+        return ConversationHandler.END # Make sure to end any conversations
 
     def setup(self):
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
@@ -286,21 +308,16 @@ class TelegramBot(object):
         acknowledge_alert_handler = CommandHandler('acknowledge', self.acknowledge_alert, pass_args=True)
         self.dispatcher.add_handler(acknowledge_alert_handler)
 
-
         # Handler for opening the garage
-        garage_menu_handler = CommandHandler('garage', self.garage, pass_args=True)
-#       garage_menu_handler = MessageHandler('garage', self.garage)
+        garage_menu_handler = ConversationHandler(
+                entry_points = [CommandHandler('garage', self.garage, pass_args=True)],
+                states= {
+                    GarageConversationState.CONFIRM: [MessageHandler(ConfirmFilter(), self.confirm_garage_action)]
+                    },
+                fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)]
+                )
         self.dispatcher.add_handler(garage_menu_handler)
 
-        #TODO: Clean this up and move somewhere
-        class TestFilter(BaseFilter):
-            def filter(self, message):
-                return message.text.split(' ')[0].lower() == 'confirm'
-        test_filter = TestFilter()
-
-#       garage_menu_handler = CommandHandler('confirm', self.confirm_garage_action, pass_args=True)
-        garage_menu_handler = MessageHandler(test_filter, self.confirm_garage_action)
-        self.dispatcher.add_handler(garage_menu_handler)
 
         # Add handler for messages we arent handling
         unknown_handler = MessageHandler(Filters.command | Filters.text, self.unknown_handler)
