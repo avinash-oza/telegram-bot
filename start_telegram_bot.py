@@ -30,14 +30,15 @@ class GarageConversationState(Enum):
 class TelegramBot(object):
 
     def __init__(self):
+        self.garages = ['LEFT', 'RIGHT'] # TODO: read from config
+
         self.config = ConfigParser.ConfigParser()
         self.config.read('bot.config')
         self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
         self.key_to_alert_id_mapping = [] # Stores the list of keys that have been sent out at the latest alert
-        self.garage_codes = {} # Dictionary to hold one time codes to make sure links are not reused
-        self.garage_code_expire_job = None # job to handle expiring the codes if a garage is not selected
+        self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
 
     def sender_is_admin(self, sender_id):
         sender_id = int(sender_id)
@@ -203,18 +204,13 @@ class TelegramBot(object):
         # Gives menu to select which garage to open
         if not self.sender_is_admin(sender_id):
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
-            return
+            return ConversationHandler.END
 
-        garages = ['LEFT', 'RIGHT']
         options = [] # Stores the keys for the keyboard reply
 
         bot.sendMessage(chat_id=sender_id, text="Getting garage status")
 
-        for one_garage in garages:
-            # create a one time "code" to store for the garage
-            random_code = random.randrange(1000, 10000000)
-            self.garage_codes[random_code] = one_garage # Make the code map to garage so we can verify
-
+        for one_garage in self.garages:
             # Get current status for garage
             current_position = self._get_garage_position(one_garage)
             return_message += ' '.join(['\n', one_garage, current_position])
@@ -225,22 +221,21 @@ class TelegramBot(object):
             else:
                 action = 'OPEN'
 
-            key_string = ' '.join(['confirm {0}'.format(random_code), action,  str(one_garage)])
+            key_string = ' '.join(['confirm', action, str(one_garage)])
             options.append([ key_string ]) # Store the key for the keyboard
 
         # Send the message with the keyboard
         reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
         bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
 
-        # Add handler to expire the codes if we dont hear back in 10 seconds
-        def expire_codes(bot, job):
-            # Clear the dict as time expired
-            self.garage_codes = {}
-            bot.sendMessage(chat_id=sender_id, text='Timeout reached. Please start again')
+        # Expires request so that the conversation is not open forever
+        def expire_request(bot, job):
+            bot.sendMessage(chat_id=sender_id, text='Timeout reached. Please start again', reply_keyboard=None)
+            return ConversationHandler.END
 
-        # Add job to expire codes
-        self.garage_code_expire_job = Job(expire_codes, 15.0, repeat=False)
-        self.job_queue.put(self.garage_code_expire_job)
+        # Add job to expire request
+        self.garage_expire_request = Job(expire_request, 15.0, repeat=False)
+        self.job_queue.put(self.garage_expire_request)
 
         # Set the conversation to go to the next state
         return GarageConversationState.CONFIRM
@@ -249,35 +244,38 @@ class TelegramBot(object):
         # Actually invokes the code to open the garage
         command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
         logger.info("START invoke code to trigger {0} garage".format(garage_name))
-#       _ =  subprocess.check_output(command_to_run, shell=True)
+        _ =  subprocess.check_output(command_to_run, shell=True)
         logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
     def confirm_garage_action(self, bot, update):
-        # TODO: Clean this up. Take everything after confirm
-        garage_code, action, _ = update.message.text.split(' ')[1:]
         sender_id = update.message.chat_id
 
-        # See if there is a pending job to expire the codes. Stop running it if there is
-        if self.garage_code_expire_job is not None:
-            self.garage_code_expire_job.schedule_removal()
-            self.garage_code_expire_job = None
+        # See if there is a pending job to expire the request. Stop running it if there is
+        if self.garage_expire_request is not None:
+            self.garage_expire_request.schedule_removal()
+            self.garage_expire_request = None
 
         if not self.sender_is_admin(update.message.chat_id):
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
             return ConversationHandler.END
+
+        try:
+            action, garage_name = update.message.text.split(' ')[1:]
+        except ValueError:
+            bot.sendMessage(chat_id=sender_id, text='I did not understand the confirm code. Please try again')
+            return ConversationHandler.END
+
+        logger.info("User {0} triggered open of garage {1}".format(sender_id, garage_name))
+
         # Open the garage if the code matches. Use the code to find which garage
-        garage_name = self.garage_codes.get(int(garage_code))
-        logger.info("Garage codes were: {0} and garage code passed was {1}".format(self.garage_codes, garage_code))
-        if garage_name:
+        if garage_name in self.garages:
             # Valid code was passed. Trigger garage
             self._open_garage(garage_name)
             bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
         else:
-            bot.sendMessage(chat_id=sender_id, text="NO GARAGE FOUND. INVALID CODE")
+            bot.sendMessage(chat_id=sender_id, text="INVALID VALUE PASSED")
             return ConversationHandler.END
 
-        # Clear codes so there is no reuse
-        self.garage_codes = {}
 
         def send_current_status(bot, job):
             text_to_send = "{0} status: {1}".format(garage_name.capitalize(), self._get_garage_position(garage_name))
