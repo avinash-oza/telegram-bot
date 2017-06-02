@@ -10,6 +10,9 @@ import sqlite3
 import mysql.connector
 import collections
 import pprint
+import urllib
+import traceback
+import json
 from enum import Enum
 from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
@@ -286,6 +289,36 @@ class TelegramBot(object):
 
         return ConversationHandler.END
 
+    def get_gdax_quote(self, bot, update, args):
+        chat_id = update.message.chat_id
+        try:
+            pair_id = args[0].upper()
+        except:
+            pair_id = 'ETH-USD'
+
+        url = 'https://api.gdax.com/products/{0}/book'.format(pair_id)
+        try:
+            result = json.load(urllib.urlopen(url))
+        except Exception as e:
+            traceback.print_exc(e)
+            bot.sendMessage(chat_id=chat_id, text="Exception occured trying to get price for pair {0}".format(pair_id))
+            return ConversationHandler.END
+
+        bid_price, bid_amount, _ = result['bids'][0]
+        ask_price, ask_amount, _ = result['asks'][0]
+
+        string_to_send = """
+        {pair_id} {current_time}
+        Bid: {bid_price}x{bid_amount}
+        Ask: {ask_price}x{ask_amount}
+        """.format(pair_id=pair_id, current_time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                bid_price=bid_price, bid_amount=bid_amount,
+                ask_price=ask_price, ask_amount=ask_amount)
+        
+        logger.info("Sending GDAX quote: {0} \n to id {1}".format(string_to_send, chat_id))
+        bot.sendMessage(chat_id=chat_id, text=string_to_send)
+        return ConversationHandler.END
+
     def unknown_handler(self, bot, update):
         logger.warn("UNHANDLED MESSAGE FROM: {0}".format(update.message.chat_id))
         pprint.pprint(update.to_dict())
@@ -315,6 +348,11 @@ class TelegramBot(object):
                 fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)]
                 )
         self.dispatcher.add_handler(garage_menu_handler)
+
+        # GDAX quote handler
+        #def get_gdax_quote(self, bot, update, args):
+        gdax_quote_handler=CommandHandler('gdax', self.get_gdax_quote, pass_args=True)
+        self.dispatcher.add_handler(gdax_quote_handler)
 
 
         # Add handler for messages we arent handling
