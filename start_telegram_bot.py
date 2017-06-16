@@ -19,10 +19,13 @@ from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 from telegram.keyboardbutton import KeyboardButton
 
 from custom_filters import ConfirmFilter
+from expiringdict import ExpiringDict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+cache = ExpiringDict(max_len=10, max_age_seconds=15)
+market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 
 # Declare states for garage door opening
 class GarageConversationState(Enum):
@@ -289,32 +292,115 @@ class TelegramBot(object):
 
         return ConversationHandler.END
 
-    def get_gdax_quote(self, bot, update, args):
-        chat_id = update.message.chat_id
-        try:
-            pair_id = args[0].upper()
-        except:
-            pair_id = 'ETH-USD'
+    def get_gemini_quote(self, quote_id):
+        mapping = {"ETH" : "ethusd",
+                   "BTC" : "btcusd"}
+        quote_name = mapping[quote_id]
 
-        url = 'https://api.gdax.com/products/{0}/book'.format(pair_id)
+        GEMINI_STR = "GEMINI_STR"
+        if cache.get(GEMINI_STR):
+            logging.info("GEMINI: Got hit for cache")
+            return cache.get(GEMINI_STR)
+
+        url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
         try:
             result = json.load(urllib.urlopen(url))
         except Exception as e:
-            traceback.print_exc(e)
-            bot.sendMessage(chat_id=chat_id, text="Exception occured trying to get price for pair {0}".format(pair_id))
-            return ConversationHandler.END
+            return "Gemini", "", "Could not get quote from Gemini"
+
+        bid_price = result['bid']
+        ask_price = result['ask']
+
+        quote_details = "Gemini", bid_price, ask_price
+
+        # Store string into cache
+        cache[GEMINI_STR] = quote_details
+        
+        return quote_details
+
+    def get_gdax_quote(self, quote_name):
+        GDAX_STR = "GDAX_STR"
+        mapping = {"ETH" : "ETH-USD",
+                   "BTC" : "BTC-USD"}
+
+        quote_name = mapping[quote_name]
+        if cache.get(GDAX_STR):
+            logging.info("GDAX: Got hit for cache")
+            return cache.get(GDAX_STR)
+
+        url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
+        try:
+            result = json.load(urllib.urlopen(url))
+        except Exception as e:
+            return "GDAX", "", "Could not get quote from GDAX"
 
         bid_price, bid_amount, _ = result['bids'][0]
         ask_price, ask_amount, _ = result['asks'][0]
 
-        string_to_send = """
-        {pair_id} {current_time}
-        Bid: {bid_price}x{bid_amount}
-        Ask: {ask_price}x{ask_amount}
-        """.format(pair_id=pair_id, current_time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                bid_price=bid_price, bid_amount=bid_amount,
-                ask_price=ask_price, ask_amount=ask_amount)
+        quote_details = "GDAX", bid_price, ask_price
+
+        # Store string into cache
+        cache[GDAX_STR] = quote_details
         
+        return quote_details
+
+    def get_coinmarketcap_data(self):
+        COINMARKETCAP_STR = "COINMARKETCAP_STR"
+        if market_cap_cache.get(COINMARKETCAP_STR):
+            logging.info("CoinMarketCap: Got hit for cache")
+            return market_cap_cache.get(COINMARKETCAP_STR)
+
+        url = 'https://api.coinmarketcap.com/v1/global/'
+        try:
+            result = json.load(urllib.urlopen(url))
+        except Exception as e:
+            return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
+        
+        total_market_cap = result['total_market_cap_usd']
+        bitcoin_percent_dominance = result['bitcoin_percentage_of_market_cap']
+
+        # Get volume of ETH and BTC
+        url = 'https://api.coinmarketcap.com/v1/ticker/{0}'
+        tickers_to_get = ['bitcoin', 'ethereum']
+        results = []
+
+        for ticker in tickers_to_get:
+            try:
+                results.append(json.load(urllib.urlopen(url.format(ticker))))
+            except Exception as e:
+                return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
+
+        btc_result, ethereum_result = results
+        btc_volume = btc_result[0]['24h_volume_usd']
+        eth_volume = ethereum_result[0]['24h_volume_usd']
+        eth_btc_volume_ratio = float(eth_volume)/float(btc_volume)
+
+        final_result = (total_market_cap, bitcoin_percent_dominance, eth_btc_volume_ratio)
+
+        market_cap_cache[COINMARKETCAP_STR] = final_result
+
+        return final_result
+
+    def get_current_quotes(self, bot, update, args):
+        chat_id = update.message.chat_id
+
+        if not self.sender_is_admin(chat_id):
+            bot.sendMessage(chat_id=chat_id, text='Not authorized')
+            return ConversationHandler.END
+
+        quote_name = "ETH" if not args else str(args[0])
+
+        prices_to_get = [self.get_gdax_quote, self.get_gemini_quote]
+        string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
+
+        for one_exchange in prices_to_get:
+            exchange_name, bid_price, ask_price = one_exchange(quote_name)
+            string_to_send += "{0} : Bid: {1} Ask: {2}\n".format(exchange_name, bid_price, ask_price)
+
+        total_marketcap, btc_dominance, eth_btc_volume_ratio = self.get_coinmarketcap_data()
+
+        string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(int(total_marketcap/1000000000), btc_dominance, eth_btc_volume_ratio)
+
         logger.info("Sending GDAX quote: {0} \n to id {1}".format(string_to_send, chat_id))
         bot.sendMessage(chat_id=chat_id, text=string_to_send)
         return ConversationHandler.END
@@ -350,8 +436,7 @@ class TelegramBot(object):
         self.dispatcher.add_handler(garage_menu_handler)
 
         # GDAX quote handler
-        #def get_gdax_quote(self, bot, update, args):
-        gdax_quote_handler=CommandHandler('gdax', self.get_gdax_quote, pass_args=True)
+        gdax_quote_handler=CommandHandler('quotes', self.get_current_quotes, pass_args=True)
         self.dispatcher.add_handler(gdax_quote_handler)
 
 
