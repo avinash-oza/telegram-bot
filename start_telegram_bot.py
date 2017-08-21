@@ -1,28 +1,20 @@
 import ConfigParser
 import logging
-import random
-import traceback
-import sys
 import subprocess
 import time
 import datetime
-import sqlite3
 import mysql.connector
-import collections
-import pprint
+
 import urllib
-import traceback
 import json
 from enum import Enum
 from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
-from telegram.keyboardbutton import KeyboardButton
+from structlog import wrap_logger
+from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
 
 from custom_filters import ConfirmFilter
 from expiringdict import ExpiringDict
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
@@ -30,7 +22,6 @@ market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 # Declare states for garage door opening
 class GarageConversationState(Enum):
     CONFIRM = 1
-
 
 
 class TelegramBot(object):
@@ -45,13 +36,21 @@ class TelegramBot(object):
         self.job_queue = self.updater.job_queue
         self.key_to_alert_id_mapping = [] # Stores the list of keys that have been sent out at the latest alert
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
+        self.logger = None
+        self._init_logging()
+
+    def _init_logging(self):
+        logging.basicConfig(level=logging.INFO, format='%(message)s', filename=self.config.get('ADMIN', 'log_file_location'))
+        logger = logging.getLogger(__name__)
+
+        self.logger = wrap_logger(logger, processors=[TimeStamper(), format_exc_info, JSONRenderer()], script="telegram_bot")
 
     def sender_is_admin(self, sender_id):
         sender_id = int(sender_id)
         admin_id = int(self.config.get('ADMIN', 'id'))
-        logger.info("Admin id {0}, sender id {1}".format(admin_id, sender_id))
         if sender_id == admin_id:
             return True
+        self.logger.warning("User {0} is not an admin".format(sender_id), sender_id=sender_id, admin_id=admin_id)
         return False
 
     def send_nagios_alerts(self, bot, job):
@@ -61,7 +60,7 @@ class TelegramBot(object):
         # Before starting, clear out any alerts we were waiting for acknoledgement on
         self.key_to_alert_id_mapping[:] = []
         admin_id = self.config.get('ADMIN', 'id')
-        logger.info("Getting alerts from db")
+        self.logger.info("Getting alerts from db")
 
         # Open the database
         db_host_name = self.config.get('DATABASE', 'host')
@@ -78,7 +77,10 @@ class TelegramBot(object):
         # Enumerate the counter so we know how many results returned
         results = [one_result for one_result in c]
         total_count_of_alerts = len(results)
-        logger.info("Got {0} results".format(total_count_of_alerts))
+        if not total_count_of_alerts:
+            return
+
+        self.logger.info("Got {0} results".format(total_count_of_alerts))
         message_str = """"""
 
         # Send the alerts which are not sent
@@ -90,7 +92,7 @@ class TelegramBot(object):
             service_name = one_alert[5]
             notification_type = one_alert[6]
             write_cursor.execute("UPDATE nagios_alerts SET status='SENT', date_sent = NOW() where id= {0}".format(alert_id))
-            logger.info("Update alert id {0} in the db for alerts".format(alert_id))
+            self.logger.debug("Update alert id {0} in the db for alerts".format(alert_id))
             # Send the message after we are sure the update occured
             message_str += alert_text
             # Add the alert to lists of alerts we can acknowledge along with a short string
@@ -100,7 +102,7 @@ class TelegramBot(object):
                 # Send 5 messages together at a time and then wait till the next call
                 break
             message_str += "--------------------\n"
-            print alert_text
+            self.logger.info(alert_text)
 
         if message_str:
             message_str += "{0}/{1} messages sent".format(index+1, total_count_of_alerts) # Since we start at 0
@@ -120,7 +122,7 @@ class TelegramBot(object):
 
 
 
-        logger.info("Finished sending alerts")
+            self.logger.info("Finished sending alerts")
         # Commit changes and close db
         conn.commit()
         conn.close()
@@ -129,13 +131,13 @@ class TelegramBot(object):
         arguments_to_use = ['status', 'timeleft']
         complete_output = ""
 
-        logger.info("Got request to check power status")
+        self.logger.info("Got request to check power status", sender_id=update.message.chat_id)
         for one_arg in arguments_to_use:
             command_to_run = ['/usr/lib/nagios/plugins/check_apcupsd {0}'.format(one_arg)]
             complete_output += subprocess.check_output(command_to_run, shell=True)
 
         bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
-        logger.info("Sent message for power status")
+        self.logger.info("Sent message for power status", sender_id=update.message.chat_id)
 
     
 
@@ -143,7 +145,7 @@ class TelegramBot(object):
         """Takes the given alert and sends a request to acknowledge it.
         For now we just schedule 1 day of downtime so that it is not forgotten
         """
-        logger.info("Got request to acknolwedge id {0}".format(args))
+        self.logger.info("Got request to acknolwedge id {0}".format(args), sender_id=update.message.chat_id)
         if not args:
             # did not pass us an alert id
             bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
@@ -153,7 +155,6 @@ class TelegramBot(object):
             alert_id, _ = self.key_to_alert_id_mapping[int(args[0])]
         except IndexError:
             # Some how the key they sent does not exist
-             logger.info("Did not find alert id {0}".format(args[0]))
              bot.sendMessage(chat_id=update.message.chat_id, text="Key does not exist")
              return
         # Find the alert id if it exists
@@ -200,19 +201,18 @@ class TelegramBot(object):
         except subprocess.CalledProcessError as e:
             #TODO: Expected error is an error code that is raised when garage is opened for nagios
             return e.output
-        else:
-            return "No output recieved"
-
     # Action for operating the garage
     def garage(self, bot, update, args):
         return_message = """Pick a garage (facing from the outside)"""
         sender_id = update.message.chat_id
         # Gives menu to select which garage to open
         if not self.sender_is_admin(sender_id):
+            self.logger.warning("Unauthorized user", sender_id=sender_id)
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
             return ConversationHandler.END
 
         options = [] # Stores the keys for the keyboard reply
+        self.logger.info("Got request to open garage.", sender_id=sender_id)
 
         bot.sendMessage(chat_id=sender_id, text="Getting garage status")
 
@@ -249,9 +249,12 @@ class TelegramBot(object):
     def _open_garage(self, garage_name):
         # Actually invokes the code to open the garage
         command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
-        logger.info("START invoke code to trigger {0} garage".format(garage_name))
-        _ =  subprocess.check_output(command_to_run, shell=True)
-        logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
+        self.logger.info("START invoke code to trigger {0} garage".format(garage_name))
+        try:
+            _ =  subprocess.check_output(command_to_run, shell=True)
+        except Exception as e:
+            self.logger.exception("Exception when trying to open garage", exc_info=e,garage_name=garage_name)
+        self.logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
     def confirm_garage_action(self, bot, update):
         sender_id = update.message.chat_id
@@ -267,18 +270,21 @@ class TelegramBot(object):
 
         try:
             action, garage_name = update.message.text.split(' ')[1:]
-        except ValueError:
+        except ValueError as e:
+            self.logger.exception("Invalid confirm code", exc_info=e, garage_name=garage_name)
             bot.sendMessage(chat_id=sender_id, text='I did not understand the confirm code. Please try again')
             return ConversationHandler.END
 
-        logger.info("User {0} triggered open of garage {1}".format(sender_id, garage_name))
+        self.logger.info("User triggered opening of garage", sender_id=sender_id, garage_name=garage_name)
 
         # Open the garage if the code matches. Use the code to find which garage
         if garage_name in self.garages:
             # Valid code was passed. Trigger garage
+            self.logger.info("Valid garage_name passed, opening garage", garage_name=garage_name)
             self._open_garage(garage_name)
             bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
         else:
+            self.logger.warning("Invalid garage name specified", garage_name=garage_name, sender_id=sender_id)
             bot.sendMessage(chat_id=sender_id, text="INVALID VALUE PASSED")
             return ConversationHandler.END
 
@@ -299,13 +305,14 @@ class TelegramBot(object):
 
         GEMINI_STR = "GEMINI_STR"
         if cache.get(GEMINI_STR):
-            logging.info("GEMINI: Got hit for cache")
+            self.logger.info("Got hit for cache", exchange='GEMINI')
             return cache.get(GEMINI_STR)
 
         url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
         try:
             result = json.load(urllib.urlopen(url))
         except Exception as e:
+            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GEMINI')
             return "Gemini", "", "Could not get quote from Gemini"
 
         bid_price = result['bid']
@@ -325,13 +332,14 @@ class TelegramBot(object):
 
         quote_name = mapping[quote_name]
         if cache.get(GDAX_STR):
-            logging.info("GDAX: Got hit for cache")
+            self.logger.info("Got hit for cache", exchange='GDAX')
             return cache.get(GDAX_STR)
 
         url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
         try:
             result = json.load(urllib.urlopen(url))
         except Exception as e:
+            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GDAX')
             return "GDAX", "", "Could not get quote from GDAX"
 
         bid_price, bid_amount, _ = result['bids'][0]
@@ -347,13 +355,14 @@ class TelegramBot(object):
     def get_coinmarketcap_data(self):
         COINMARKETCAP_STR = "COINMARKETCAP_STR"
         if market_cap_cache.get(COINMARKETCAP_STR):
-            logging.info("CoinMarketCap: Got hit for cache")
+            self.logger.info("Got hit for cache", exchange='COINMARKETCAP')
             return market_cap_cache.get(COINMARKETCAP_STR)
 
         url = 'https://api.coinmarketcap.com/v1/global/'
         try:
             result = json.load(urllib.urlopen(url))
         except Exception as e:
+            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
             return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
         
         total_market_cap = result['total_market_cap_usd']
@@ -368,6 +377,7 @@ class TelegramBot(object):
             try:
                 results.append(json.load(urllib.urlopen(url.format(ticker))))
             except Exception as e:
+                self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
                 return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
 
         btc_result, ethereum_result = results
@@ -401,24 +411,24 @@ class TelegramBot(object):
 
         string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(int(total_marketcap/1000000000), btc_dominance, eth_btc_volume_ratio)
 
-        logger.info("Sending GDAX quote: {0} \n to id {1}".format(string_to_send, chat_id))
+        self.logger.info("Sending quote: {0}".format(string_to_send), sender_id=chat_id, exchange='GDAX')
         bot.sendMessage(chat_id=chat_id, text=string_to_send)
         return ConversationHandler.END
 
     def unknown_handler(self, bot, update):
-        logger.warn("UNHANDLED MESSAGE FROM: {0}".format(update.message.chat_id))
-        pprint.pprint(update.to_dict())
-        logger.warn("----------------")
         if update.message:
             chat_id = update.message.chat_id
         else:
             chat_id = update.channel.chat_id
+        self.logger.warn("UNHANDLED MESSAGE".format(update.message.chat_id), sender_id=chat_id, message_dict=update.to_dict())
 
         bot.sendMessage(chat_id=chat_id, text="Did not understand message")
 
         return ConversationHandler.END # Make sure to end any conversations
 
     def setup(self):
+        self.logger.info("Starting up TelegramBot")
+
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
         self.dispatcher.add_handler(power_status_handler)
 
