@@ -4,6 +4,7 @@ import subprocess
 import time
 import datetime
 import mysql.connector
+import os
 
 import urllib
 import json
@@ -40,7 +41,8 @@ class TelegramBot(object):
         self._init_logging()
 
     def _init_logging(self):
-        logging.basicConfig(level=logging.INFO, format='%(message)s', filename=self.config.get('ADMIN', 'log_file_location'))
+        log_file_path = os.path.join(self.config.get('ADMIN', 'log_file_location'), 'telegram-bot.log')
+        logging.basicConfig(level=logging.INFO, format='%(message)s', filename=log_file_path)
         logger = logging.getLogger(__name__)
 
         self.logger = wrap_logger(logger, processors=[TimeStamper(), format_exc_info, JSONRenderer()], script="telegram_bot")
