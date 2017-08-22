@@ -4,6 +4,7 @@ bot_api = SECRET_KEY
 [ADMIN]
 id = 9999999999
 ups_ip = 10.10.10.1
+log_file_location: /my/logfile/dir
 
 [DATABASE]
 host=192.168.2.1
