@@ -5,6 +5,7 @@ import time
 import datetime
 import mysql.connector
 import os
+import urlparse
 
 import urllib
 import json
@@ -16,9 +17,13 @@ from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
 
 from custom_filters import ConfirmFilter
 from expiringdict import ExpiringDict
+import requests
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
+
+#TODO: REMOVE THIS
+auth = ('avi', 'milo')
 
 # Declare states for garage door opening
 class GarageConversationState(Enum):
@@ -192,20 +197,18 @@ class TelegramBot(object):
         text_output = subprocess.check_output(command_to_run.format(comment_string), shell=True)
         bot.sendMessage(chat_id=update.message.chat_id, text="Marked {0} for 1 day of downtime".format(host_and_service_name))
 
-    def _get_garage_position(self, garage_name):
+    def _get_garage_position(self, garage_name='all'):
         # Returns whether the garage is open or closed
-        # TODO: MOVE TO OWN SCRIPT AND HANDLE MULTIPLE GARAGES
+        request_url = 'http://172.16.2.102/garage/status/{0}'.format(garage_name)
+        r = requests.get(request_url, auth=auth)
+        if r.status_code == 200:
+            return r.json()
 
-        command_to_run = ["ssh garage-door@pi2 '~/home-projects/pi-zero/check_garage_status {0}'".format(garage_name)]
+        return []
 
-        try:
-            return subprocess.check_output(command_to_run, shell=True)
-        except subprocess.CalledProcessError as e:
-            #TODO: Expected error is an error code that is raised when garage is opened for nagios
-            return e.output
     # Action for operating the garage
     def garage(self, bot, update, args):
-        return_message = """Pick a garage (facing from the outside)"""
+        return_message = """"""
         sender_id = update.message.chat_id
         # Gives menu to select which garage to open
         if not self.sender_is_admin(sender_id):
@@ -216,21 +219,23 @@ class TelegramBot(object):
         options = [] # Stores the keys for the keyboard reply
         self.logger.info("Got request to open garage.", sender_id=sender_id)
 
-        bot.sendMessage(chat_id=sender_id, text="Getting garage status")
+        garage_statuses = self._get_garage_position()
+        if not garage_statuses:
+            bot.sendMessage(chat_id=sender_id, text='An exception occured while getting garage status', reply_keyboard=None)
+            return ConversationHandler.END
 
-        for one_garage in self.garages:
-            # Get current status for garage
-            current_position = self._get_garage_position(one_garage)
-            return_message += ' '.join(['\n', one_garage, current_position])
-
-            # Calculate whether to write OPEN or CLOSE
-            if 'OPEN' in current_position:
-                action = 'CLOSE'
-            else:
-                action = 'OPEN'
-
-            key_string = ' '.join(['confirm', action, str(one_garage)])
-            options.append([ key_string ]) # Store the key for the keyboard
+        # Handle the reponse and creation of the keyboard
+        return_message += "Pick a garage \n"
+        for one_garage_dict in garage_statuses:
+            garage_name = one_garage_dict['garage_name']
+            current_status = one_garage_dict['status']
+            return_message += ': '.join([garage_name, current_status, one_garage_dict['status_time']]) + '\n'
+            
+            # Determine whether this can be opened or closed
+            if not one_garage_dict['error']: 
+                action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
+                key_string = ' '.join(['confirm', action, str(garage_name)])
+                options.append([ key_string ]) # Store the key for the keyboard
 
         # Send the message with the keyboard
         reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
@@ -270,29 +275,26 @@ class TelegramBot(object):
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
             return ConversationHandler.END
 
-        try:
-            action, garage_name = update.message.text.split(' ')[1:]
-        except ValueError as e:
-            self.logger.exception("Invalid confirm code", exc_info=e, garage_name=garage_name)
-            bot.sendMessage(chat_id=sender_id, text='I did not understand the confirm code. Please try again')
+        action, garage_name = update.message.text.split(' ')[1:]
+        request_url = 'http://172.16.2.102/garage/control/{0}/{1}'.format(garage_name, action)
+        print(request_url)
+
+        r = requests.get(request_url, auth=auth)
+        if r.status_code != 200:
+            bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action), reply_keyboard=None)
             return ConversationHandler.END
+
+        response = r.json()
+
 
         self.logger.info("User triggered opening of garage", sender_id=sender_id, garage_name=garage_name)
 
-        # Open the garage if the code matches. Use the code to find which garage
-        if garage_name in self.garages:
-            # Valid code was passed. Trigger garage
-            self.logger.info("Valid garage_name passed, opening garage", garage_name=garage_name)
-            self._open_garage(garage_name)
-            bot.sendMessage(chat_id=sender_id, text="{0} {1} garage...".format(action.capitalize() + 'ing', garage_name.capitalize()))
-        else:
-            self.logger.warning("Invalid garage name specified", garage_name=garage_name, sender_id=sender_id)
-            bot.sendMessage(chat_id=sender_id, text="INVALID VALUE PASSED")
-            return ConversationHandler.END
-
+        bot.sendMessage(chat_id=sender_id, text=response['status'])
 
         def send_current_status(bot, job):
-            text_to_send = "{0} status: {1}".format(garage_name.capitalize(), self._get_garage_position(garage_name))
+            response = self._get_garage_position(garage_name)
+            text_to_send = ': '.join([garage_name, response[0]['status'], response[0]['status_time']])
+
             bot.sendMessage(chat_id=sender_id, text=text_to_send)
 
         # Wait to allow the door to move and send the status back
