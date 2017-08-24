@@ -22,9 +22,6 @@ import requests
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 
-#TODO: REMOVE THIS
-auth = ('avi', 'milo')
-
 # Declare states for garage door opening
 class GarageConversationState(Enum):
     CONFIRM = 1
@@ -44,6 +41,20 @@ class TelegramBot(object):
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
         self.logger = None
         self._init_logging()
+        # Garage door params
+        self.garage_door_base_url = None
+        self.garage_door_user_pass = None
+        self._set_garage_door_parameters()
+
+    def _set_garage_door_parameters(self):
+        hostname = self.config.get('GARAGE', 'hostname')
+        port = self.config.get('GARAGE', 'port')
+
+        user = self.config.get('GARAGE', 'user')
+        password = self.config.get('GARAGE', 'password')
+
+        self.garage_door_base_url = 'http://{0}:{1}'.format(hostname, port)
+        self.garage_door_user_pass = (user, password)
 
     def _init_logging(self):
         log_file_path = os.path.join(self.config.get('ADMIN', 'log_file_location'), 'telegram-bot.log')
@@ -199,8 +210,8 @@ class TelegramBot(object):
 
     def _get_garage_position(self, garage_name='all'):
         # Returns whether the garage is open or closed
-        request_url = 'http://172.16.2.102/garage/status/{0}'.format(garage_name)
-        r = requests.get(request_url, auth=auth)
+        request_url = '{0}/garage/status/{1}'.format(self.garage_door_base_url, garage_name)
+        r = requests.get(request_url, auth=self.garage_door_user_pass)
         if r.status_code == 200:
             return r.json()
 
@@ -276,10 +287,9 @@ class TelegramBot(object):
             return ConversationHandler.END
 
         action, garage_name = update.message.text.split(' ')[1:]
-        request_url = 'http://172.16.2.102/garage/control/{0}/{1}'.format(garage_name, action)
-        print(request_url)
+        request_url = '{0}/garage/control/{1}/{2}'.format(self.garage_door_base_url, garage_name, action)
 
-        r = requests.get(request_url, auth=auth)
+        r = requests.get(request_url, auth=self.garage_door_user_pass)
         if r.status_code != 200:
             bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action), reply_keyboard=None)
             return ConversationHandler.END
