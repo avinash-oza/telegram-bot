@@ -50,7 +50,7 @@ class TelegramBot(object):
         hostname = self.config.get('GARAGE', 'hostname')
         port = self.config.get('GARAGE', 'port')
 
-        user = self.config.get('GARAGE', 'user')
+        user = self.config.get('GARAGE', 'username')
         password = self.config.get('GARAGE', 'password')
 
         self.garage_door_base_url = 'http://{0}:{1}'.format(hostname, port)
