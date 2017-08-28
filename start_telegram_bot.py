@@ -30,8 +30,6 @@ class GarageConversationState(Enum):
 class TelegramBot(object):
 
     def __init__(self):
-        self.garages = ['LEFT', 'RIGHT'] # TODO: read from config
-
         self.config = ConfigParser.ConfigParser()
         self.config.read('bot.config')
         self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
@@ -96,7 +94,7 @@ class TelegramBot(object):
         results = [one_result for one_result in c]
         total_count_of_alerts = len(results)
         if not total_count_of_alerts:
-            return
+            return ConversationHandler.END
 
         self.logger.info("Got {0} results".format(total_count_of_alerts))
         message_str = """"""
@@ -167,14 +165,14 @@ class TelegramBot(object):
         if not args:
             # did not pass us an alert id
             bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
-            return
+            return ConversationHandler.END
 
         try:
             alert_id, _ = self.key_to_alert_id_mapping[int(args[0])]
         except IndexError:
             # Some how the key they sent does not exist
              bot.sendMessage(chat_id=update.message.chat_id, text="Key does not exist")
-             return
+             return ConversationHandler.END
         # Find the alert id if it exists
         # Open the database
         db_host_name = self.config.get('DATABASE', 'host')
@@ -265,16 +263,6 @@ class TelegramBot(object):
 
         # Set the conversation to go to the next state
         return GarageConversationState.CONFIRM
-
-    def _open_garage(self, garage_name):
-        # Actually invokes the code to open the garage
-        command_to_run = ["ssh garage-door@pi2 'python ~/home-projects/pi-zero/relay_trigger.py {0}'".format(garage_name)]
-        self.logger.info("START invoke code to trigger {0} garage".format(garage_name))
-        try:
-            _ =  subprocess.check_output(command_to_run, shell=True)
-        except Exception as e:
-            self.logger.exception("Exception when trying to open garage", exc_info=e,garage_name=garage_name)
-        self.logger.info("FINISH invoke code to trigger {0} garage".format(garage_name))
 
     def confirm_garage_action(self, bot, update):
         sender_id = update.message.chat_id
@@ -453,7 +441,9 @@ class TelegramBot(object):
 
         # Handler for opening the garage
         garage_menu_handler = ConversationHandler(
-                entry_points = [CommandHandler('garage', self.garage), RegexHandler('^(Garage|garage)', self.garage), RegexHandler('^(Ga)', self.garage)],
+                entry_points = [CommandHandler('garage', self.garage),
+                                RegexHandler('^(Garage|garage)', self.garage),
+                                RegexHandler('^(Ga)', self.garage)],
                 states= {
                     GarageConversationState.CONFIRM: [MessageHandler(ConfirmFilter(), self.confirm_garage_action)]
                     },
