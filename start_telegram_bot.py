@@ -10,7 +10,7 @@ import urlparse
 import urllib
 import json
 from enum import Enum
-from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler
+from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler, RegexHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 from structlog import wrap_logger
 from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
@@ -208,6 +208,8 @@ class TelegramBot(object):
         text_output = subprocess.check_output(command_to_run.format(comment_string), shell=True)
         bot.sendMessage(chat_id=update.message.chat_id, text="Marked {0} for 1 day of downtime".format(host_and_service_name))
 
+        return ConversationHandler.END
+
     def _get_garage_position(self, garage_name='all'):
         # Returns whether the garage is open or closed
         request_url = '{0}/garage/status/{1}'.format(self.garage_door_base_url, garage_name)
@@ -218,7 +220,7 @@ class TelegramBot(object):
         return []
 
     # Action for operating the garage
-    def garage(self, bot, update, args):
+    def garage(self, bot, update):
         return_message = """"""
         sender_id = update.message.chat_id
         # Gives menu to select which garage to open
@@ -451,7 +453,7 @@ class TelegramBot(object):
 
         # Handler for opening the garage
         garage_menu_handler = ConversationHandler(
-                entry_points = [CommandHandler('garage', self.garage, pass_args=True)],
+                entry_points = [CommandHandler('garage', self.garage), RegexHandler('^(Garage|garage)', self.garage), RegexHandler('^(Ga)', self.garage)],
                 states= {
                     GarageConversationState.CONFIRM: [MessageHandler(ConfirmFilter(), self.confirm_garage_action)]
                     },
