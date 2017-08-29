@@ -430,6 +430,17 @@ class TelegramBot(object):
 
         return ConversationHandler.END # Make sure to end any conversations
 
+    def heartbeat_handler(self, bot, update):
+        # Sents a signal to the nagios server that we are still up
+        dict_to_send = [{'return_code': "0",
+                        'plugin_output': "Telegram bot is up",
+                        'service_description': "Telegram Bot Available",
+                        'hostname': 'monitoring-station',
+                        }]
+        url = self.config.get('ALERTS', 'passive_alerts_endpoint')
+
+        requests.post(url, json=dict_to_send)
+
     def setup(self):
         self.logger.info("Starting up TelegramBot")
 
@@ -464,6 +475,12 @@ class TelegramBot(object):
         # Create the job to check if we have any nagios alerts to send
         send_alerts_job = Job(self.send_nagios_alerts, 90.0)
         self.job_queue.put(send_alerts_job, next_t=0.0)
+
+        # Add job to alert nagios server we are up
+        if int(self.config.get('ALERTS', 'heartbeat')) == 1:
+            self.logger.info("Enabling heartbeat handler for nagios")
+            heartbeat_job = Job(self.heartbeat_handler, 120.0)
+            self.job_queue.put(heartbeat_job, next_t=0.0)
 
     def run(self):
         self.setup()
