@@ -99,6 +99,7 @@ class TelegramBot(object):
 
             host_name = one_alert['hostname']
             service_name = one_alert['hostname']
+            message_str += "Alert ID: {}".format(str(one_alert['id'])) 
             message_str += one_alert['message_text']
             if one_alert['acknowledgable']:
                 acknowledgeable_alerts_cache[alert_id] = (host_name, service_name) # Add to dictionary to track
