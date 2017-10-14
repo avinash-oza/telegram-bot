@@ -139,26 +139,26 @@ class TelegramBot(object):
 
     
 
-    def acknowledge_alert(self, bot, update, args):
+    def acknowledge_alert(self, bot, update, groups):
         """
-        Given a string in the form of "acknowledge <ID> | <SOME DESC>" this sends the appropriate nagios command
+        Given a string in the form of "acknowledge <ID> | <SOME DESC>" this sends the appropriate nagios commands
         :param bot:
         :param update:
-        :param args:
+        :param groups: tuple of regex group
         :return:
         """
-        self.logger.info("Got request to acknowledge id {0}".format(args), sender_id=update.message.chat_id)
-        if not args:
+        sender_id = update.message.chat_id
+        self.logger.info("Got request to acknowledge id {0}".format(groups, sender_id=sender_id))
+        if not groups:
             # did not pass us an alert id
             bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
             return ConversationHandler.END
 
         try:
-            acknowledge_string_and_id, _ = args[0].split('|')
-            _, alert_id = acknowledge_string_and_id.split(' ').strip()
+            _, alert_id = groups[0].split(' ')
+            alert_id = alert_id.strip()
         except IndexError:
-            # Some how the key they sent does not exist
-             bot.sendMessage(chat_id=update.message.chat_id, text="Invalid string passed to acknowledge")
+             bot.sendMessage(chat_id=update.message.chat_id, text="Invalid string {} passed to acknowledge".format(groups[0]))
              return ConversationHandler.END
 
         hostname = self.config.get('ALERTS', 'hostname')
@@ -168,7 +168,9 @@ class TelegramBot(object):
             bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert', reply_keyboard=None)
             return ConversationHandler.END
 
-        bot.sendMessage(chat_id=sender_id, text='Successfully scheduled downtime for 1 day', reply_keyboard=None)
+        text = "Successfully scheduled downtime for id {0} for 1 day".format(alert_id)
+        self.logger.info(text)
+        bot.sendMessage(chat_id=sender_id, text=text, reply_keyboard=None)
 
         return ConversationHandler.END
 
@@ -411,7 +413,7 @@ class TelegramBot(object):
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
         self.dispatcher.add_handler(power_status_handler)
 
-        acknowledge_alert_handler = RegexHandler('acknowledge', self.acknowledge_alert, pass_args=True)
+        acknowledge_alert_handler = RegexHandler('^(acknowledge \d+)', self.acknowledge_alert, pass_groups=True)
         self.dispatcher.add_handler(acknowledge_alert_handler)
 
         # Handler for opening the garage
