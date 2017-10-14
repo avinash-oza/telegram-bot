@@ -107,10 +107,10 @@ class TelegramBot(object):
 
         if message_str:
             message_str += "{0} messages sent".format(len(unsent_alerts))
-            bot.sendMessage(chat_id=admin_id, text=message_str)
 
+        # If there are alerts than can be acknowledged, add the keyboard to acknowledge
+        reply_keyboard = None
         if acknowledgeable_alerts_cache: # We have some alerts that can be acknowledged
-            acknowledge_string = """ALERTS THAT CAN BE ACKNOWLEDGED: \n"""
             options = []  # Stores the keys for the keyboard reply
             for alert_id, (host, service) in acknowledgeable_alerts_cache.items():
                 key_string = "acknowledge {alert_id} | {host}  {service}".format(alert_id=alert_id, host=host, service=service)
@@ -118,7 +118,7 @@ class TelegramBot(object):
 
             # Send the message with the keyboard
             reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
-            bot.sendMessage(chat_id=admin_id, text=acknowledge_string, reply_markup=reply_keyboard)
+        bot.sendMessage(chat_id=admin_id, text=message_str, reply_markup=reply_keyboard)
 
         self.logger.info("Finished sending {} alerts".format(len(unsent_alerts)))
 
