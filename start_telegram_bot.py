@@ -21,7 +21,7 @@ import requests
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
-acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=60) # max alerts at a time is 5
+acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=180) # max alerts at a time is 3 mins
 
 # Declare states for garage door opening
 class GarageConversationState(Enum):
@@ -36,8 +36,6 @@ class TelegramBot(object):
         self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
-        #TODO: Maybe make this an expiring dictionary of alert ids
-        self.key_to_alert_id_mapping = [] # Stores the list of keys that have been sent out at the latest alert
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
         self.logger = None
         self._init_logging()
@@ -79,12 +77,10 @@ class TelegramBot(object):
         self.logger.info("Getting alerts from db")
 
         hostname = self.config.get('ALERTS', 'hostname')
-        url = 'http://{0}/get_nagios_unsent_alerts'.format(hostname, alert_id)
+        url = 'http://{0}/get_nagios_unsent_alerts'.format(hostname)
         r = requests.get(url)
         if r.status_code != 200:
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert',
-                            reply_keyboard=None)
-
+            bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert', reply_keyboard=None)
             return ConversationHandler.END
 
         unsent_alerts = r.json()
@@ -94,6 +90,8 @@ class TelegramBot(object):
 
         message_str = """"""
         for one_alert in unsent_alerts: # No need to check count as server limits it
+
+            alert_id = one_alert['id']
             url = 'http://{0}/update_alert/{1}/SENT'.format(hostname, alert_id)
             r = requests.get(url)
             if r.status_code != 200:
@@ -102,14 +100,13 @@ class TelegramBot(object):
             host_name = one_alert['hostname']
             service_name = one_alert['hostname']
             message_str += one_alert['message_text']
-            if one_alert['acknowledgeable']:
-                acknowledgeable_alerts_cache[one_alert['alert_id']] = (host_name, service_name) # Add to dictionary to track
+            if one_alert['acknowledgable']:
+                acknowledgeable_alerts_cache[alert_id] = (host_name, service_name) # Add to dictionary to track
             message_str += "--------------------\n"
 
         if message_str:
             message_str += "{0} messages sent".format(len(unsent_alerts))
             bot.sendMessage(chat_id=admin_id, text=message_str)
-
 
         if acknowledgeable_alerts_cache: # We have some alerts that can be acknowledged
             acknowledge_string = """ALERTS THAT CAN BE ACKNOWLEDGED: \n"""
@@ -122,8 +119,7 @@ class TelegramBot(object):
             reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
             bot.sendMessage(chat_id=admin_id, text=acknowledge_string, reply_markup=reply_keyboard)
 
-        self.logger.info("Finished sending alerts")
-        # Commit changes and close db
+        self.logger.info("Finished sending {} alerts".format(len(unsent_alerts)))
 
     def power_status(self, bot, update, args):
         arguments_to_use = ['status', 'timeleft']
@@ -160,6 +156,11 @@ class TelegramBot(object):
         except IndexError:
              bot.sendMessage(chat_id=update.message.chat_id, text="Invalid string {} passed to acknowledge".format(groups[0]))
              return ConversationHandler.END
+
+        if alert_id not in acknowledgeable_alerts_cache:
+            bot.sendMessage(chat_id=update.message.chat_id, text="Did not find id {} in cache".format(groups[0]))
+            self.logger.error("Attempted to access id {}. Cache had {}".format(alert_id, acknowledgeable_alerts_cache))
+            return ConversationHandler.END
 
         hostname = self.config.get('ALERTS', 'hostname')
         url = 'http://{0}/acknowledge/{1}'.format(hostname, alert_id)
