@@ -215,6 +215,7 @@ class TelegramBot(object):
                 action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
                 key_string = ' '.join(['confirm', action, str(garage_name)])
                 options.append([ key_string ]) # Store the key for the keyboard
+        options.append(["CANCEL GARAGE"]) # Store the key for the keyboard
 
         # Send the message with the keyboard
         reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
