@@ -1,13 +1,13 @@
-import ConfigParser
+import configparser
 import logging
 import subprocess
 import time
 import datetime
 import mysql.connector
 import os
-import urlparse
+import urllib.parse
 
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import json
 from enum import Enum
 from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler, RegexHandler
@@ -31,7 +31,7 @@ class GarageConversationState(Enum):
 class TelegramBot(object):
 
     def __init__(self):
-        self.config = ConfigParser.ConfigParser()
+        self.config = configparser.ConfigParser()
         self.config.read('bot.config')
         self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
         self.dispatcher = self.updater.dispatcher
@@ -112,7 +112,7 @@ class TelegramBot(object):
         reply_keyboard = None
         if acknowledgeable_alerts_cache: # We have some alerts that can be acknowledged
             options = []  # Stores the keys for the keyboard reply
-            for alert_id, (host, service) in acknowledgeable_alerts_cache.items():
+            for alert_id, (host, service) in list(acknowledgeable_alerts_cache.items()):
                 key_string = "acknowledge {alert_id} | {host}  {service}".format(alert_id=alert_id, host=host, service=service)
                 options.append([ key_string ]) # Store the key for the keyboard
 
@@ -283,7 +283,7 @@ class TelegramBot(object):
 
         url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
         try:
-            result = json.load(urllib.urlopen(url))
+            result = json.load(urllib.request.urlopen(url))
         except Exception as e:
             self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GEMINI')
             return "Gemini", "", "Could not get quote from Gemini"
@@ -310,7 +310,7 @@ class TelegramBot(object):
 
         url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
         try:
-            result = json.load(urllib.urlopen(url))
+            result = json.load(urllib.request.urlopen(url))
         except Exception as e:
             self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GDAX')
             return "GDAX", "", "Could not get quote from GDAX"
@@ -333,7 +333,7 @@ class TelegramBot(object):
 
         url = 'https://api.coinmarketcap.com/v1/global/'
         try:
-            result = json.load(urllib.urlopen(url))
+            result = json.load(urllib.request.urlopen(url))
         except Exception as e:
             self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
             return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
@@ -348,7 +348,7 @@ class TelegramBot(object):
 
         for ticker in tickers_to_get:
             try:
-                results.append(json.load(urllib.urlopen(url.format(ticker))))
+                results.append(json.load(urllib.request.urlopen(url.format(ticker))))
             except Exception as e:
                 self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
                 return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
