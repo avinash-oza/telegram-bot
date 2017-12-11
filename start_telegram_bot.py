@@ -442,14 +442,12 @@ class TelegramBot(object):
 
 
         # Create the job to check if we have any nagios alerts to send
-        send_alerts_job = Job(self.send_nagios_alerts, 90.0)
-        self.job_queue.put(send_alerts_job, next_t=0.0)
+        self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
 
         # Add job to alert nagios server we are up
         if int(self.config.get('ALERTS', 'heartbeat')) == 1:
             self.logger.info("Enabling heartbeat handler for nagios")
-            heartbeat_job = Job(self.heartbeat_handler, 120.0)
-            self.job_queue.put(heartbeat_job, next_t=0.0)
+            self.job_queue.run_repeating(self.heartbeat_handler, 120.0)
 
     def run(self):
         self.setup()
