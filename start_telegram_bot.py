@@ -3,7 +3,6 @@ import logging
 import subprocess
 import time
 import datetime
-import mysql.connector
 import os
 import urllib.parse
 
