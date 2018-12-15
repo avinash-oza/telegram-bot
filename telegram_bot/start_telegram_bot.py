@@ -453,7 +453,4 @@ class TelegramBot(object):
         self.updater.start_polling()
         self.updater.idle()
 
-if __name__ == '__main__':
-    telegram_bot = TelegramBot()
-    telegram_bot.run()
 
