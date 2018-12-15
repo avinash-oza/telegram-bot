@@ -1,16 +1,16 @@
+import configparser
 import datetime
 import json
 import logging
 import os
 import subprocess
-
-import configparser
-import requests
 import urllib.error
 import urllib.parse
 import urllib.parse
 import urllib.request
 from enum import Enum
+
+import requests
 from expiringdict import ExpiringDict
 from structlog import wrap_logger
 from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
