@@ -14,7 +14,7 @@ from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 from structlog import wrap_logger
 from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
 
-from custom_filters import ConfirmFilter
+from .custom_filters import ConfirmFilter
 from expiringdict import ExpiringDict
 import requests
 
