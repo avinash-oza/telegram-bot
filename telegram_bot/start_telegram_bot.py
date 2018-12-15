@@ -1,22 +1,23 @@
-import configparser
-import logging
-import subprocess
-import time
 import datetime
-import os
-import urllib.parse
-
-import urllib.request, urllib.parse, urllib.error
 import json
+import logging
+import os
+import subprocess
+
+import configparser
+import requests
+import urllib.error
+import urllib.parse
+import urllib.parse
+import urllib.request
 from enum import Enum
-from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, BaseFilter, ConversationHandler, RegexHandler
-from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
+from expiringdict import ExpiringDict
 from structlog import wrap_logger
 from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
+from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler
+from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 
 from .custom_filters import ConfirmFilter
-from expiringdict import ExpiringDict
-import requests
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
@@ -29,9 +30,9 @@ class GarageConversationState(Enum):
 
 class TelegramBot(object):
 
-    def __init__(self):
+    def __init__(self, config_file='bot.config'):
         self.config = configparser.ConfigParser()
-        self.config.read('bot.config')
+        self.config.read(config_file)
         self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue

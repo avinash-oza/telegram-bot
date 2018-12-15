@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 from telegram_bot.start_telegram_bot import TelegramBot
 
+#TODO: Allow the bot config to be specified by the command line
+bot_config_path = '/etc/telegram-bot/bot.config'
+
 if __name__ == '__main__':
-    telegram_bot = TelegramBot()
+    telegram_bot = TelegramBot(bot_config_path)
     telegram_bot.run()
