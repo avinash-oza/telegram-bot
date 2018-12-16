@@ -18,6 +18,7 @@ from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, 
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 
 from .custom_filters import ConfirmFilter
+from .garage_door import GarageDoorHandler
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
@@ -40,19 +41,7 @@ class TelegramBot(object):
         self.logger = None
         self._init_logging()
         # Garage door params
-        self.garage_door_base_url = None
-        self.garage_door_user_pass = None
-        self._set_garage_door_parameters()
-
-    def _set_garage_door_parameters(self):
-        hostname = self.config.get('GARAGE', 'hostname')
-        port = self.config.get('GARAGE', 'port')
-
-        user = self.config.get('GARAGE', 'username')
-        password = self.config.get('GARAGE', 'password')
-
-        self.garage_door_base_url = 'http://{0}:{1}'.format(hostname, port)
-        self.garage_door_user_pass = (user, password)
+        self.garage_handler = GarageDoorHandler(self.config)
 
     def _init_logging(self):
         log_file_path = os.path.join(self.config.get('ADMIN', 'log_file_location'), 'telegram-bot.log')
@@ -176,15 +165,6 @@ class TelegramBot(object):
 
         return ConversationHandler.END
 
-    def _get_garage_position(self, garage_name='all'):
-        # Returns whether the garage is open or closed
-        request_url = '{0}/garage/status/{1}'.format(self.garage_door_base_url, garage_name)
-        r = requests.get(request_url, auth=self.garage_door_user_pass)
-        if r.status_code == 200:
-            return r.json()
-
-        return []
-
     # Action for operating the garage
     def garage(self, bot, update):
         return_message = """"""
@@ -198,7 +178,7 @@ class TelegramBot(object):
         options = [] # Stores the keys for the keyboard reply
         self.logger.info("Got request to open garage.", sender_id=sender_id)
 
-        garage_statuses = self._get_garage_position()
+        garage_statuses = self.garage_handler._get_garage_position()
         if not garage_statuses:
             bot.sendMessage(chat_id=sender_id, text='An exception occured while getting garage status', reply_keyboard=None)
             return ConversationHandler.END
@@ -246,9 +226,9 @@ class TelegramBot(object):
             return ConversationHandler.END
 
         action, garage_name = update.message.text.split(' ')[1:]
-        request_url = '{0}/garage/control/{1}/{2}'.format(self.garage_door_base_url, garage_name, action)
 
-        r = requests.get(request_url, auth=self.garage_door_user_pass)
+        r = self.garage_handler._control_garage(garage_name, action)
+
         if r.status_code != 200:
             bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action), reply_keyboard=None)
             return ConversationHandler.END
@@ -261,7 +241,7 @@ class TelegramBot(object):
         bot.sendMessage(chat_id=sender_id, text=response['status'])
 
         def send_current_status(bot, job):
-            response = self._get_garage_position(garage_name)
+            response = self.garage_handler._get_garage_position(garage_name)
             text_to_send = ': '.join([garage_name, response[0]['status'], response[0]['status_time']])
 
             bot.sendMessage(chat_id=sender_id, text=text_to_send)
