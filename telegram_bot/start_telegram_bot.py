@@ -24,6 +24,8 @@ cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=180) # max alerts at a time is 3 mins
 
+logger = logging.getLogger(__name__)
+
 # Declare states for garage door opening
 class GarageConversationState(Enum):
     CONFIRM = 1
@@ -38,24 +40,15 @@ class TelegramBot(object):
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
-        self.logger = None
-        self._init_logging()
         # Garage door params
         self.garage_handler = GarageDoorHandler(self.config)
-
-    def _init_logging(self):
-        log_file_path = os.path.join(self.config.get('ADMIN', 'log_file_location'), 'telegram-bot.log')
-        logging.basicConfig(level=logging.INFO, format='%(message)s', filename=log_file_path)
-        logger = logging.getLogger(__name__)
-
-        self.logger = wrap_logger(logger, processors=[TimeStamper(), format_exc_info, JSONRenderer()], script="telegram_bot")
 
     def sender_is_admin(self, sender_id):
         sender_id = int(sender_id)
         admin_id = int(self.config.get('ADMIN', 'id'))
         if sender_id == admin_id:
             return True
-        self.logger.warning("User {0} is not an admin".format(sender_id), sender_id=sender_id, admin_id=admin_id)
+        logger.warning("User {0} is not an admin. Admin : {}".format(sender_id, admin_id))
         return False
 
     def send_nagios_alerts(self, bot, job):
@@ -63,7 +56,7 @@ class TelegramBot(object):
         Retrieves alerts and sends them
         """
         admin_id = self.config.get('ADMIN', 'id')
-        self.logger.info("Getting alerts from db")
+        logger.info("Getting alerts from db")
 
         hostname = self.config.get('ALERTS', 'hostname')
         url = 'http://{0}/get_nagios_unsent_alerts'.format(hostname)
@@ -109,19 +102,19 @@ class TelegramBot(object):
             reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
         bot.sendMessage(chat_id=admin_id, text=message_str, reply_markup=reply_keyboard)
 
-        self.logger.info("Finished sending {} alerts".format(len(unsent_alerts)))
+        logger.info("Finished sending {} alerts".format(len(unsent_alerts)))
 
     def power_status(self, bot, update, args):
         arguments_to_use = ['status', 'timeleft']
         complete_output = ""
 
-        self.logger.info("Got request to check power status", sender_id=update.message.chat_id)
+        logger.info("Got request to check power status", sender_id=update.message.chat_id)
         for one_arg in arguments_to_use:
             command_to_run = ['/usr/lib/nagios/plugins/check_apcupsd {0}'.format(one_arg)]
             complete_output += subprocess.check_output(command_to_run, shell=True)
 
         bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
-        self.logger.info("Sent message for power status", sender_id=update.message.chat_id)
+        logger.info("Sent message for power status", sender_id=update.message.chat_id)
 
     
 
@@ -134,7 +127,7 @@ class TelegramBot(object):
         :return:
         """
         sender_id = update.message.chat_id
-        self.logger.info("Got request to acknowledge id {0}".format(groups, sender_id=sender_id))
+        logger.info("Got request to acknowledge id {0}".format(groups, sender_id=sender_id))
         if not groups:
             # did not pass us an alert id
             bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
@@ -149,7 +142,7 @@ class TelegramBot(object):
 
         if alert_id not in acknowledgeable_alerts_cache:
             bot.sendMessage(chat_id=update.message.chat_id, text="Did not find id {} in cache".format(groups[0]))
-            self.logger.error("Attempted to access id {}. Cache had {}".format(alert_id, acknowledgeable_alerts_cache))
+            logger.error("Attempted to access id {}. Cache had {}".format(alert_id, acknowledgeable_alerts_cache))
             return ConversationHandler.END
 
         hostname = self.config.get('ALERTS', 'hostname')
@@ -160,7 +153,7 @@ class TelegramBot(object):
             return ConversationHandler.END
 
         text = "Successfully scheduled downtime for id {0} for 1 day".format(alert_id)
-        self.logger.info(text)
+        logger.info(text)
         bot.sendMessage(chat_id=sender_id, text=text, reply_keyboard=None)
 
         return ConversationHandler.END
@@ -171,12 +164,12 @@ class TelegramBot(object):
         sender_id = update.message.chat_id
         # Gives menu to select which garage to open
         if not self.sender_is_admin(sender_id):
-            self.logger.warning("Unauthorized user", sender_id=sender_id)
+            logger.warning("Unauthorized user {}".format(sender_id))
             bot.sendMessage(chat_id=sender_id, text='Not authorized')
             return ConversationHandler.END
 
         options = [] # Stores the keys for the keyboard reply
-        self.logger.info("Got request to open garage.", sender_id=sender_id)
+        logger.info("Got request to open garage from {}".format(sender_id))
 
         garage_statuses = self.garage_handler._get_garage_position()
         if not garage_statuses:
@@ -236,7 +229,7 @@ class TelegramBot(object):
         response = r.json()
 
 
-        self.logger.info("User triggered opening of garage", sender_id=sender_id, garage_name=garage_name)
+        logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage_name))
 
         bot.sendMessage(chat_id=sender_id, text=response['status'])
 
@@ -258,14 +251,14 @@ class TelegramBot(object):
 
         GEMINI_STR = "GEMINI_STR"
         if cache.get(GEMINI_STR):
-            self.logger.info("Got hit for cache", exchange='GEMINI')
+            logger.info("Got hit for cache", exchange='GEMINI')
             return cache.get(GEMINI_STR)
 
         url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
         try:
             result = json.load(urllib.request.urlopen(url))
         except Exception as e:
-            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GEMINI')
+            logger.exception("Could not get quote from exchange", exc_info=e, exchange='GEMINI')
             return "Gemini", "", "Could not get quote from Gemini"
 
         bid_price = result['bid']
@@ -285,14 +278,14 @@ class TelegramBot(object):
 
         quote_name = mapping[quote_name]
         if cache.get(GDAX_STR):
-            self.logger.info("Got hit for cache", exchange='GDAX')
+            logger.info("Got hit for cache", exchange='GDAX')
             return cache.get(GDAX_STR)
 
         url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
         try:
             result = json.load(urllib.request.urlopen(url))
         except Exception as e:
-            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='GDAX')
+            logger.exception("Could not get quote from exchange", exc_info=e, exchange='GDAX')
             return "GDAX", "", "Could not get quote from GDAX"
 
         bid_price, bid_amount, _ = result['bids'][0]
@@ -308,14 +301,14 @@ class TelegramBot(object):
     def get_coinmarketcap_data(self):
         COINMARKETCAP_STR = "COINMARKETCAP_STR"
         if market_cap_cache.get(COINMARKETCAP_STR):
-            self.logger.info("Got hit for cache", exchange='COINMARKETCAP')
+            logger.info("Got hit for cache", exchange='COINMARKETCAP')
             return market_cap_cache.get(COINMARKETCAP_STR)
 
         url = 'https://api.coinmarketcap.com/v1/global/'
         try:
             result = json.load(urllib.request.urlopen(url))
         except Exception as e:
-            self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
+            logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
             return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
         
         total_market_cap = result['total_market_cap_usd']
@@ -330,7 +323,7 @@ class TelegramBot(object):
             try:
                 results.append(json.load(urllib.request.urlopen(url.format(ticker))))
             except Exception as e:
-                self.logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
+                logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
                 return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
 
         btc_result, ethereum_result = results
@@ -364,7 +357,7 @@ class TelegramBot(object):
 
         string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(int(total_marketcap/1000000000), btc_dominance, eth_btc_volume_ratio)
 
-        self.logger.info("Sending quote: {0}".format(string_to_send), sender_id=chat_id, exchange='GDAX')
+        logger.info("Sending quote: {0} to sender_id={} for exchange {}".format(string_to_send), chat_id, exchange_name)
         bot.sendMessage(chat_id=chat_id, text=string_to_send)
         return ConversationHandler.END
 
@@ -373,7 +366,7 @@ class TelegramBot(object):
             chat_id = update.message.chat_id
         else:
             chat_id = update.channel.chat_id
-        self.logger.warn("UNHANDLED MESSAGE".format(update.message.chat_id), sender_id=chat_id, message_dict=update.to_dict())
+        logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
         bot.sendMessage(chat_id=chat_id, text="Did not understand message")
 
@@ -391,7 +384,7 @@ class TelegramBot(object):
         requests.post(url, json=dict_to_send)
 
     def setup(self):
-        self.logger.info("Starting up TelegramBot")
+        logger.info("Starting up TelegramBot")
 
         power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
         self.dispatcher.add_handler(power_status_handler)
@@ -426,7 +419,7 @@ class TelegramBot(object):
 
         # Add job to alert nagios server we are up
         if int(self.config.get('ALERTS', 'heartbeat')) == 1:
-            self.logger.info("Enabling heartbeat handler for nagios")
+            logger.info("Enabling heartbeat handler for nagios")
             self.job_queue.run_repeating(self.heartbeat_handler, 120.0)
 
     def run(self):
