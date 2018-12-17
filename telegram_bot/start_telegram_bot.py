@@ -25,6 +25,7 @@ market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=180) # max alerts at a time is 3 mins
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG) #TODO: Remove this later on
 
 # Declare states for garage door opening
 class GarageConversationState(Enum):
@@ -195,13 +196,13 @@ class TelegramBot(object):
         bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
 
         # Expires request so that the conversation is not open forever
-        def expire_request(bot, job):
-            bot.sendMessage(chat_id=sender_id, text='Timeout reached. Please start again', reply_keyboard=None)
-            return ConversationHandler.END
+        # def expire_request(bot, job):
+        #     bot.sendMessage(chat_id=sender_id, text='Timeout reached. Please start again', reply_keyboard=None)
+        #     return ConversationHandler.END
 
         # Add job to expire request
-        self.garage_expire_request = Job(expire_request, 15.0, repeat=False)
-        self.job_queue.put(self.garage_expire_request)
+        # self.garage_expire_request = Job(expire_request, 15.0, repeat=False)
+        # self.job_queue.put(self.garage_expire_request)
 
         # Set the conversation to go to the next state
         return GarageConversationState.CONFIRM
@@ -357,7 +358,7 @@ class TelegramBot(object):
 
         string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(int(total_marketcap/1000000000), btc_dominance, eth_btc_volume_ratio)
 
-        logger.info("Sending quote: {0} to sender_id={} for exchange {}".format(string_to_send), chat_id, exchange_name)
+        logger.info("Sending quote: {} to sender_id={} for exchange {}".format(string_to_send, chat_id, exchange_name))
         bot.sendMessage(chat_id=chat_id, text=string_to_send)
         return ConversationHandler.END
 
@@ -400,7 +401,8 @@ class TelegramBot(object):
                 states= {
                     GarageConversationState.CONFIRM: [MessageHandler(ConfirmFilter(), self.confirm_garage_action)]
                     },
-                fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)]
+                fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)],
+            conversation_timeout=15
                 )
         self.dispatcher.add_handler(garage_menu_handler)
 
@@ -415,12 +417,13 @@ class TelegramBot(object):
 
 
         # Create the job to check if we have any nagios alerts to send
-        self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
-
+        # TODO: Enable this once fixed
+        # self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
+        # TODO: Enable this once fixed
         # Add job to alert nagios server we are up
-        if int(self.config.get('ALERTS', 'heartbeat')) == 1:
-            logger.info("Enabling heartbeat handler for nagios")
-            self.job_queue.run_repeating(self.heartbeat_handler, 120.0)
+        # if int(self.config.get('ALERTS', 'heartbeat')) == 1:
+        #     logger.info("Enabling heartbeat handler for nagios")
+        #     self.job_queue.run_repeating(self.heartbeat_handler, 120.0)
 
     def run(self):
         self.setup()

@@ -3,9 +3,7 @@ from telegram_bot.start_telegram_bot import TelegramBot
 
 #TODO: Dict format in the future?
 import logging
-logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(message)s')
-logger.setLevel(logging.DEBUG)
 
 #TODO: Allow the bot config to be specified by the command line
 bot_config_path = '/etc/telegram-bot/bot.config'
