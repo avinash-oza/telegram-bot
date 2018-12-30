@@ -172,7 +172,7 @@ class TelegramBot(object):
 
         logger.info("Got request to open garage from {}".format(sender_id))
 
-        garage_statuses = self.garage_handler._get_garage_position()
+        garage_statuses = self.garage_handler.get_garage_position()
         if not garage_statuses:
             bot.sendMessage(chat_id=sender_id, text='An exception occured while getting garage status', reply_keyboard=None)
             return ConversationHandler.END
@@ -203,21 +203,28 @@ class TelegramBot(object):
 
         action, garage_name = update.message.text.split(' ')[1:]
 
-        r = self.garage_handler._control_garage(garage_name, action)
+        r = self.garage_handler.control_garage(garage_name, action)
 
-        if r.status_code != 200:
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action), reply_keyboard=None)
+        if not len(r):
+            bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action),
+                            reply_keyboard=None)
+
+        # check for any errors in triggering
+        if any([resp['error'] for resp in r]):
+            # join the errors together
+            bot.sendMessage(chat_id=sender_id, text='|'.join(resp['message'] for resp in r), reply_keyboard=None)
             return ConversationHandler.END
 
-        response = r.json()
+        # No errors
 
         logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage_name))
+        message = '|'.join(resp['message'] for resp in r)
+        message += '\nWaiting 10 seconds before refreshing...'
+        bot.sendMessage(chat_id=sender_id, text=message)
 
-        bot.sendMessage(chat_id=sender_id, text=response['status'])
-
-        #TODO: send another status response, wait 10s and then send the reply
+        # Wait 10s and send another status response, wait 10s and then send the reply
         time.sleep(10)
-        garage_statuses = self.garage_handler._get_garage_position()
+        garage_statuses = self.garage_handler.get_garage_position()
 
         # Create the response message
         return_message = "Status after {} on the {} garage:\n".format(action, garage_name)
