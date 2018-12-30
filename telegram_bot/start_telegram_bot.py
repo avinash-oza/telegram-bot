@@ -404,7 +404,11 @@ class TelegramBot(object):
         unknown_handler = MessageHandler(Filters.command | Filters.text, self.unknown_handler)
         self.dispatcher.add_handler(unknown_handler)
 
+        def startup_alert(bot, job):
+            admin_id = int(self.config.get('ADMIN', 'id'))
+            bot.sendMessage(chat_id=admin_id, text='Bot started up')
 
+        self.job_queue.run_once(startup_alert, 10)
         # Create the job to check if we have any nagios alerts to send
         # TODO: Enable this once fixed
         # self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
