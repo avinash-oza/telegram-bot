@@ -18,6 +18,7 @@ from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
 from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 
+from telegram_bot.decorators import check_sender_admin
 from .custom_filters import ConfirmFilter
 from .garage_door import GarageDoorHandler
 
@@ -161,14 +162,11 @@ class TelegramBot(object):
         return ConversationHandler.END
 
     # Action for operating the garage
+    @check_sender_admin
     def garage(self, bot, update):
         return_message = """"""
         sender_id = update.message.chat_id
         # Gives menu to select which garage to open
-        if not self.sender_is_admin(sender_id):
-            logger.warning("Unauthorized user {}".format(sender_id))
-            bot.sendMessage(chat_id=sender_id, text='Not authorized')
-            return ConversationHandler.END
 
         logger.info("Got request to open garage from {}".format(sender_id))
 
@@ -189,17 +187,11 @@ class TelegramBot(object):
         # Set the conversation to go to the next state
         return GarageConversationState.CONFIRM
 
+    @check_sender_admin
     def confirm_garage_action(self, bot, update):
         sender_id = update.message.chat_id
 
         # See if there is a pending job to expire the request. Stop running it if there is
-        if self.garage_expire_request is not None:
-            self.garage_expire_request.schedule_removal()
-            self.garage_expire_request = None
-
-        if not self.sender_is_admin(update.message.chat_id):
-            bot.sendMessage(chat_id=sender_id, text='Not authorized')
-            return ConversationHandler.END
 
         action, garage_name = update.message.text.split(' ')[1:]
 
@@ -327,12 +319,9 @@ class TelegramBot(object):
 
         return final_result
 
+    @check_sender_admin
     def get_current_quotes(self, bot, update, args):
         chat_id = update.message.chat_id
-
-        if not self.sender_is_admin(chat_id):
-            bot.sendMessage(chat_id=chat_id, text='Not authorized')
-            return ConversationHandler.END
 
         quote_name = "ETH" if not args else str(args[0])
 
