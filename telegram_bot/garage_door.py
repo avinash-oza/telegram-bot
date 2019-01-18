@@ -3,6 +3,7 @@ import json
 import logging
 
 import boto3
+from telegram import InlineKeyboardButton
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # TODO: Remove this later on
@@ -96,8 +97,9 @@ class GarageDoorHandler:
             # Determine whether this can be opened or closed
             if not one_garage_dict['error']:
                 action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
-                key_string = ' '.join(['confirm', action, str(garage_name)])
-                options.append([key_string])  # Store the key for the keyboard
-        options.append(["CANCEL GARAGE"])  # Store the key for the keyboard
+                callback_data = ' '.join(['garage', action, str(garage_name)])
+                key_text = '{} the {} Garage'.format(action.capitalize(), garage_name)
+                options.append([InlineKeyboardButton(key_text, callback_data=callback_data)])  # Store the key for the keyboard
+        options.append([InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
 
         return options

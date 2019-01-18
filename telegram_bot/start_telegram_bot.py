@@ -1,29 +1,20 @@
 import configparser
-import datetime
-import json
 import logging
-import os
-import time
 import subprocess
-import urllib.error
-import urllib.parse
-import urllib.parse
-import urllib.request
+import time
 from enum import Enum
 
 import requests
 from expiringdict import ExpiringDict
-from structlog import wrap_logger
-from structlog.processors import JSONRenderer, TimeStamper, format_exc_info
-from telegram.ext import Job, Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler
+from telegram import InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler, \
+    CallbackQueryHandler
 from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 
-from telegram_bot.decorators import check_sender_admin
-from .custom_filters import ConfirmFilter
+from .decorators import check_sender_admin
 from .garage_door import GarageDoorHandler
+from .market_quotes import get_current_quotes
 
-cache = ExpiringDict(max_len=10, max_age_seconds=15)
-market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=180) # max alerts at a time is 3 mins
 
 logger = logging.getLogger(__name__)
@@ -45,14 +36,6 @@ class TelegramBot(object):
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
         # Garage door params
         self.garage_handler = GarageDoorHandler(self.config)
-
-    def sender_is_admin(self, sender_id):
-        sender_id = int(sender_id)
-        admin_id = int(self.config.get('ADMIN', 'id'))
-        if sender_id == admin_id:
-            return True
-        logger.warning("User {0} is not an admin. Admin : {}".format(sender_id, admin_id))
-        return False
 
     def send_nagios_alerts(self, bot, job):
         """
@@ -119,7 +102,6 @@ class TelegramBot(object):
         bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
         logger.info("Sent message for power status", sender_id=update.message.chat_id)
 
-    
 
     def acknowledge_alert(self, bot, update, groups):
         """
@@ -165,179 +147,79 @@ class TelegramBot(object):
     @check_sender_admin
     def garage(self, bot, update):
         return_message = """"""
-        sender_id = update.message.chat_id
+        sender_id = update.effective_user.id
         # Gives menu to select which garage to open
+        if update.callback_query is None:
+            logger.info("Got request to open garage from {}".format(sender_id))
 
-        logger.info("Got request to open garage from {}".format(sender_id))
+            garage_statuses = self.garage_handler.get_garage_position()
+            if not garage_statuses:
+                bot.sendMessage(chat_id=sender_id, text='An exception occured while getting garage status',
+                                reply_keyboard=None)
+                return ConversationHandler.END
 
-        garage_statuses = self.garage_handler.get_garage_position()
-        if not garage_statuses:
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while getting garage status', reply_keyboard=None)
+            # Create the response message
+            return_message += "Pick a garage:\n"
+            return_message += self.garage_handler.status_to_string(garage_statuses)
+
+            # create the keyboard
+            keyboard_options = self.garage_handler.get_keyboard_format(garage_statuses)
+            reply_keyboard = InlineKeyboardMarkup(keyboard_options, one_time_keyboard=True)
+            bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
+
+            # Set the conversation to go to the next state
+            return GarageConversationState.CONFIRM
+
+
+        if update.callback_query is not None:
+            update.callback_query.answer()
+            action_and_garage = update.callback_query.data
+            if action_and_garage == 'garage cancel':
+                update.callback_query.edit_message_text('Not doing anything')
+                return ConversationHandler.END
+
+            # process a confirm action
+            action, garage = action_and_garage.lstrip('garage ').split(' ')
+            logger.warning("Got confirmation for triggering garage: {} and action: {}".format(garage, action))
+
+            update.callback_query.edit_message_text('Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
+            r = self.garage_handler.control_garage(garage, action)
+
+            if not len(r):
+                update.callback_query.edit_message_text("An error occured while trying to trigger the garage.")
+                return ConversationHandler.END
+
+            # check for any errors in triggering
+            if any([resp['error'] for resp in r]):
+                # join the errors together
+                update.callback_query.edit_message_text('|'.join(resp['message'] for resp in r))
+                return ConversationHandler.END
+
+            # No errors
+
+            logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage))
+            # update.callback_query.edit_message_text( '|'.join(resp['message'] for resp in r))
+            time.sleep(2)
+            update.callback_query.edit_message_text('Waiting 10 seconds before refreshing...')
+
+            # Wait 10s and send another status response, wait 10s and then send the reply
+            time.sleep(10)
+            garage_statuses = self.garage_handler.get_garage_position()
+
+            # Create the response message
+            return_message = "Status after {} on the {} garage:\n".format(action, garage)
+            return_message += self.garage_handler.status_to_string(garage_statuses)
+
+            update.callback_query.edit_message_text(return_message)
+
             return ConversationHandler.END
-
-        # Create the response message
-        return_message += "Pick a garage:\n"
-        return_message += self.garage_handler.status_to_string(garage_statuses)
-
-        # create the keyboard
-        keyboard_options = self.garage_handler.get_keyboard_format(garage_statuses)
-        reply_keyboard = ReplyKeyboardMarkup(keyboard_options, one_time_keyboard=True)
-        bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
-
-        # Set the conversation to go to the next state
-        return GarageConversationState.CONFIRM
-
-    @check_sender_admin
-    def confirm_garage_action(self, bot, update):
-        sender_id = update.message.chat_id
-
-        # See if there is a pending job to expire the request. Stop running it if there is
-
-        action, garage_name = update.message.text.split(' ')[1:]
-
-        r = self.garage_handler.control_garage(garage_name, action)
-
-        if not len(r):
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while sending the {0} command'.format(action),
-                            reply_keyboard=None)
-
-        # check for any errors in triggering
-        if any([resp['error'] for resp in r]):
-            # join the errors together
-            bot.sendMessage(chat_id=sender_id, text='|'.join(resp['message'] for resp in r), reply_keyboard=None)
-            return ConversationHandler.END
-
-        # No errors
-
-        logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage_name))
-        message = '|'.join(resp['message'] for resp in r)
-        message += '\nWaiting 10 seconds before refreshing...'
-        bot.sendMessage(chat_id=sender_id, text=message)
-
-        # Wait 10s and send another status response, wait 10s and then send the reply
-        time.sleep(10)
-        garage_statuses = self.garage_handler.get_garage_position()
-
-        # Create the response message
-        return_message = "Status after {} on the {} garage:\n".format(action, garage_name)
-        return_message += self.garage_handler.status_to_string(garage_statuses)
-
-        bot.sendMessage(chat_id=sender_id, text=return_message)
-
-        return ConversationHandler.END
-
-    def get_gemini_quote(self, quote_id):
-        mapping = {"ETH" : "ethusd",
-                   "BTC" : "btcusd"}
-        quote_name = mapping[quote_id]
-
-        GEMINI_STR = "GEMINI_STR"
-        if cache.get(GEMINI_STR):
-            logger.info("Got hit for cache", exchange='GEMINI')
-            return cache.get(GEMINI_STR)
-
-        url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
-        try:
-            result = json.load(urllib.request.urlopen(url))
-        except Exception as e:
-            logger.exception("Could not get quote from exchange", exc_info=e, exchange='GEMINI')
-            return "Gemini", "", "Could not get quote from Gemini"
-
-        bid_price = result['bid']
-        ask_price = result['ask']
-
-        quote_details = "Gemini", bid_price, ask_price
-
-        # Store string into cache
-        cache[GEMINI_STR] = quote_details
-        
-        return quote_details
-
-    def get_gdax_quote(self, quote_name):
-        GDAX_STR = "GDAX_STR"
-        mapping = {"ETH" : "ETH-USD",
-                   "BTC" : "BTC-USD"}
-
-        quote_name = mapping[quote_name]
-        if cache.get(GDAX_STR):
-            logger.info("Got hit for cache", exchange='GDAX')
-            return cache.get(GDAX_STR)
-
-        url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
-        try:
-            result = json.load(urllib.request.urlopen(url))
-        except Exception as e:
-            logger.exception("Could not get quote from exchange", exc_info=e, exchange='GDAX')
-            return "GDAX", "", "Could not get quote from GDAX"
-
-        bid_price, bid_amount, _ = result['bids'][0]
-        ask_price, ask_amount, _ = result['asks'][0]
-
-        quote_details = "GDAX", bid_price, ask_price
-
-        # Store string into cache
-        cache[GDAX_STR] = quote_details
-        
-        return quote_details
-
-    def get_coinmarketcap_data(self):
-        COINMARKETCAP_STR = "COINMARKETCAP_STR"
-        if market_cap_cache.get(COINMARKETCAP_STR):
-            logger.info("Got hit for cache", exchange='COINMARKETCAP')
-            return market_cap_cache.get(COINMARKETCAP_STR)
-
-        url = 'https://api.coinmarketcap.com/v1/global/'
-        try:
-            result = json.load(urllib.request.urlopen(url))
-        except Exception as e:
-            logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
-            return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
-        
-        total_market_cap = result['total_market_cap_usd']
-        bitcoin_percent_dominance = result['bitcoin_percentage_of_market_cap']
-
-        # Get volume of ETH and BTC
-        url = 'https://api.coinmarketcap.com/v1/ticker/{0}'
-        tickers_to_get = ['bitcoin', 'ethereum']
-        results = []
-
-        for ticker in tickers_to_get:
-            try:
-                results.append(json.load(urllib.request.urlopen(url.format(ticker))))
-            except Exception as e:
-                logger.exception("Could not get quote from exchange", exc_info=e, exchange='COINMARKETCAP')
-                return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
-
-        btc_result, ethereum_result = results
-        btc_volume = btc_result[0]['24h_volume_usd']
-        eth_volume = ethereum_result[0]['24h_volume_usd']
-        eth_btc_volume_ratio = float(eth_volume)/float(btc_volume)
-
-        final_result = (total_market_cap, bitcoin_percent_dominance, eth_btc_volume_ratio)
-
-        market_cap_cache[COINMARKETCAP_STR] = final_result
-
-        return final_result
 
     @check_sender_admin
     def get_current_quotes(self, bot, update, args):
-        chat_id = update.message.chat_id
-
         quote_name = "ETH" if not args else str(args[0])
-
-        prices_to_get = [self.get_gdax_quote, self.get_gemini_quote]
-        string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
-
-        for one_exchange in prices_to_get:
-            exchange_name, bid_price, ask_price = one_exchange(quote_name)
-            string_to_send += "{0} : Bid: {1} Ask: {2}\n".format(exchange_name, bid_price, ask_price)
-
-        total_marketcap, btc_dominance, eth_btc_volume_ratio = self.get_coinmarketcap_data()
-
-        string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(int(total_marketcap/1000000000), btc_dominance, eth_btc_volume_ratio)
-
-        logger.info("Sending quote: {} to sender_id={} for exchange {}".format(string_to_send, chat_id, exchange_name))
-        bot.sendMessage(chat_id=chat_id, text=string_to_send)
+        quotes_response = get_current_quotes(quote_name)
+        chat_id = update.effective_user.id
+        bot.sendMessage(chat_id=chat_id, text=quotes_response)
         return ConversationHandler.END
 
     def unknown_handler(self, bot, update):
@@ -376,28 +258,25 @@ class TelegramBot(object):
                 entry_points = [CommandHandler('garage', self.garage),
                                 RegexHandler('^(Garage|garage)', self.garage),
                                 RegexHandler('^(Ga)', self.garage)],
-                states= {
-                    GarageConversationState.CONFIRM: [MessageHandler(ConfirmFilter(), self.confirm_garage_action)]
-                    },
+                states= {GarageConversationState.CONFIRM: [CallbackQueryHandler(self.garage, pattern='^garage')]},
                 fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)],
             conversation_timeout=15
                 )
         self.dispatcher.add_handler(garage_menu_handler)
 
-        # GDAX quote handler
-        gdax_quote_handler=CommandHandler('quotes', self.get_current_quotes, pass_args=True)
-        self.dispatcher.add_handler(gdax_quote_handler)
+        crypto_quotes_handler = CommandHandler('quotes', self.get_current_quotes, pass_args=True)
+        self.dispatcher.add_handler(crypto_quotes_handler)
 
 
         # Add handler for messages we arent handling
         unknown_handler = MessageHandler(Filters.command | Filters.text, self.unknown_handler)
         self.dispatcher.add_handler(unknown_handler)
 
-        def startup_alert(bot, job):
-            admin_id = int(self.config.get('ADMIN', 'id'))
-            bot.sendMessage(chat_id=admin_id, text='Bot started up')
-
-        self.job_queue.run_once(startup_alert, 10)
+        # def startup_alert(bot, job):
+        #     admin_id = int(self.config.get('ADMIN', 'id'))
+        #     bot.sendMessage(chat_id=admin_id, text='Bot started up')
+        #
+        # self.job_queue.run_once(startup_alert, 10)
         # Create the job to check if we have any nagios alerts to send
         # TODO: Enable this once fixed
         # self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
