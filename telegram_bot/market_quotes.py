@@ -6,22 +6,17 @@ from expiringdict import ExpiringDict
 
 logger = logging.getLogger(__name__)
 
-cache = ExpiringDict(max_len=10, max_age_seconds=15)
-market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
+cache = ExpiringDict(max_len=10, max_age_seconds=60 * 5)
+
 GEMINI_KEY = 'GEMINI'
 GDAX_KEY = 'GDAX'
 COINMARKETCAP_KEY = 'COINMARKETCAP'
+TIME_KEY = 'TIME'
 
-def get_gemini_quote(quote_name):
-    mapping = {"ETH": "ethusd",
-               "BTC": "btcusd"}
+
+def get_gemini_quote(quote_name, *args, **kwargs):
+    mapping = {"ETH": "ethusd", "BTC": "btcusd"}
     quote_name = mapping[quote_name]
-
-    try:
-        return cache[GEMINI_KEY]
-    except KeyError:
-        logger.info("Did not get a hit for {}".format(GEMINI_KEY))
-        # handle this below
 
     # Get quotes from API
     url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
@@ -34,48 +29,30 @@ def get_gemini_quote(quote_name):
         raise
     else:
         # Store string into cache
-        cache[GEMINI_KEY] = GEMINI_KEY, result['bid'], result['ask']
-
-        return cache[GEMINI_KEY]
-
-def get_gdax_quote(quote_name):
-        GDAX_STR = "GDAX_STR"
-        mapping = {"ETH" : "ETH-USD",
-                   "BTC" : "BTC-USD"}
-
-        quote_name = mapping[quote_name]
-        try:
-            return cache[GDAX_KEY]
-        except KeyError:
-            logger.info("Did not get a hit for {}".format(GDAX_KEY))
+        return "{0} : Bid: {1} Ask: {2}\n".format(GEMINI_KEY, result['bid'], result['ask'])
 
 
-        url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-            result = r.json()
-        except requests.HTTPError as e:
-            logger.exception("Could not get quote from exchange")
-            raise
+def get_gdax_quote(quote_name, *args, **kwargs):
+    mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
 
-        bid_price, bid_amount, _ = result['bids'][0]
-        ask_price, ask_amount, _ = result['asks'][0]
+    quote_name = mapping[quote_name]
 
-        quote_details = GDAX_KEY, bid_price, ask_price
-
-        # Store string into cache
-        cache[GDAX_STR] = quote_details
-
-        return quote_details
-
-
-def get_coinmarketcap_data():
+    url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
     try:
-        return cache[COINMARKETCAP_KEY]
-    except KeyError:
-        logger.info("Did not get a hit for {}".format(COINMARKETCAP_KEY))
+        r = requests.get(url)
+        r.raise_for_status()
+        result = r.json()
+    except requests.HTTPError as e:
+        logger.exception("Could not get quote from exchange")
+        raise
 
+    bid_price, bid_amount, _ = result['bids'][0]
+    ask_price, ask_amount, _ = result['asks'][0]
+
+    return "{0} : Bid: {1} Ask: {2}\n".format(GDAX_KEY, bid_price, ask_price)
+
+
+def get_coinmarketcap_data(*args, **kwargs):
     url = 'https://api.coinmarketcap.com/v1/global/'
     try:
         r = requests.get(url)
@@ -101,32 +78,42 @@ def get_coinmarketcap_data():
             results.append(result)
         except Exception as e:
             logger.exception("Could not get quote from exchange COINMARKETCAP")
-            return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
 
     btc_result, ethereum_result = results
     btc_volume = btc_result[0]['24h_volume_usd']
     eth_volume = ethereum_result[0]['24h_volume_usd']
     eth_btc_volume_ratio = float(eth_volume) / float(btc_volume)
 
-    final_result = (total_market_cap, bitcoin_percent_dominance, eth_btc_volume_ratio)
-
-    market_cap_cache[COINMARKETCAP_KEY] = final_result
-
-    return final_result
+    return "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(
+        int(total_market_cap / 1000000000), bitcoin_percent_dominance, eth_btc_volume_ratio)
 
 
 def get_current_quotes(quote_name='ETH'):
+    key_func_mapping = {(GDAX_KEY, quote_name): get_gdax_quote,
+                        (GEMINI_KEY, quote_name): get_gemini_quote,
+                        (COINMARKETCAP_KEY, quote_name): get_coinmarketcap_data
+                        }
+    # cache the time as well
+    try:
+        string_to_send = cache[TIME_KEY]
+    except KeyError:
+        string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
+        cache[TIME_KEY] = string_to_send
 
-    prices_to_get = [get_gdax_quote, get_gemini_quote]
-    string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
-
-    for one_exchange in prices_to_get:
-        exchange_name, bid_price, ask_price = one_exchange(quote_name)
-        string_to_send += "{0} : Bid: {1} Ask: {2}\n".format(exchange_name, bid_price, ask_price)
-
-    total_marketcap, btc_dominance, eth_btc_volume_ratio = get_coinmarketcap_data()
-
-    string_to_send += "MarketCap: {0:d}B BTC Dom: {1} ETH/BTC Vol Ratio:{2:.2f}".format(
-        int(total_marketcap / 1000000000), btc_dominance, eth_btc_volume_ratio)
+    for key, call_func in key_func_mapping.items():
+        try:
+            # check if the key is in the cache
+            result = cache[key]
+        except KeyError:
+            try:
+                # calculate the result and store to cache
+                result = call_func(quote_name=quote_name)
+                cache[key] = result
+            except Exception as e:
+                logger.exception("Exception for {}".format(key))
+                result = "Failed to get for exchange {}".format(key)
+        finally:
+            # construct the string
+            string_to_send += result
 
     return string_to_send
