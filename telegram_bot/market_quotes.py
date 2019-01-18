@@ -3,6 +3,7 @@ import json
 import logging
 import urllib.request
 
+import requests
 from expiringdict import ExpiringDict
 
 logger = logging.getLogger(__name__)
@@ -12,33 +13,33 @@ logger.setLevel(logging.DEBUG) #TODO: Remove this later on
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
+GEMINI_KEY = 'GEMINI'
 
 def get_gemini_quote(quote_name):
     mapping = {"ETH": "ethusd",
                "BTC": "btcusd"}
     quote_name = mapping[quote_name]
 
-    GEMINI_STR = "GEMINI_STR"
-    if cache.get(GEMINI_STR):
-        logger.info("Got hit for cache for exchange GEMINI")
-        return cache.get(GEMINI_STR)
+    try:
+        return cache[GEMINI_KEY]
+    except KeyError:
+        logger.info("Did not get a hit for {}".format(GEMINI_KEY))
+        # handle this below
 
+    # Get quotes from API
     url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
     try:
-        result = json.load(urllib.request.urlopen(url))
-    except Exception as e:
+        r = requests.get(url)
+        r.raise_for_status()
+        result = r.json()
+    except requests.HTTPError as e:
         logger.exception("Could not get quote from exchange")
-        return "Gemini", "", "Could not get quote from Gemini"
+        raise
+    else:
+        # Store string into cache
+        cache[GEMINI_KEY] = GEMINI_KEY, result['bid'], result['ask']
 
-    bid_price = result['bid']
-    ask_price = result['ask']
-
-    quote_details = "Gemini", bid_price, ask_price
-
-    # Store string into cache
-    cache[GEMINI_STR] = quote_details
-
-    return quote_details
+        return cache[GEMINI_KEY]
 
 def get_gdax_quote(quote_name):
         GDAX_STR = "GDAX_STR"
