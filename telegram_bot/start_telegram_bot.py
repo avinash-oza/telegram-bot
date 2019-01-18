@@ -20,9 +20,7 @@ acknowledgeable_alerts_cache = ExpiringDict(max_len=6, max_age_seconds=180) # ma
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG) #TODO: Remove this later on
 
-# Declare states for garage door opening
-class GarageConversationState(Enum):
-    CONFIRM = 1
+GARAGE_CONFIRMED_STATE = 1
 
 
 class TelegramBot(object):
@@ -168,7 +166,7 @@ class TelegramBot(object):
             bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
 
             # Set the conversation to go to the next state
-            return GarageConversationState.CONFIRM
+            return GARAGE_CONFIRMED_STATE
 
 
         if update.callback_query is not None:
@@ -258,7 +256,7 @@ class TelegramBot(object):
                 entry_points = [CommandHandler('garage', self.garage),
                                 RegexHandler('^(Garage|garage)', self.garage),
                                 RegexHandler('^(Ga)', self.garage)],
-                states= {GarageConversationState.CONFIRM: [CallbackQueryHandler(self.garage, pattern='^garage')]},
+                states= {GARAGE_CONFIRMED_STATE: [CallbackQueryHandler(self.garage, pattern='^garage')]},
                 fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)],
             conversation_timeout=15
                 )
