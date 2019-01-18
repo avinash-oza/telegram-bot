@@ -1,19 +1,16 @@
 import datetime
-import json
 import logging
-import urllib.request
 
 import requests
 from expiringdict import ExpiringDict
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG) #TODO: Remove this later on
-
-#TODO: rewrite this using requests
 
 cache = ExpiringDict(max_len=10, max_age_seconds=15)
 market_cap_cache = ExpiringDict(max_len=10, max_age_seconds=60*5) # 5 mins
 GEMINI_KEY = 'GEMINI'
+GDAX_KEY = 'GDAX'
+COINMARKETCAP_KEY = 'COINMARKETCAP'
 
 def get_gemini_quote(quote_name):
     mapping = {"ETH": "ethusd",
@@ -47,21 +44,25 @@ def get_gdax_quote(quote_name):
                    "BTC" : "BTC-USD"}
 
         quote_name = mapping[quote_name]
-        if cache.get(GDAX_STR):
-            logger.info("Got hit for cache on exchange {}".format(GDAX_STR))
-            return cache.get(GDAX_STR)
+        try:
+            return cache[GDAX_KEY]
+        except KeyError:
+            logger.info("Did not get a hit for {}".format(GDAX_KEY))
+
 
         url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
         try:
-            result = json.load(urllib.request.urlopen(url))
-        except Exception as e:
+            r = requests.get(url)
+            r.raise_for_status()
+            result = r.json()
+        except requests.HTTPError as e:
             logger.exception("Could not get quote from exchange")
-            return "GDAX", "", "Could not get quote from GDAX"
+            raise
 
         bid_price, bid_amount, _ = result['bids'][0]
         ask_price, ask_amount, _ = result['asks'][0]
 
-        quote_details = "GDAX", bid_price, ask_price
+        quote_details = GDAX_KEY, bid_price, ask_price
 
         # Store string into cache
         cache[GDAX_STR] = quote_details
@@ -70,17 +71,19 @@ def get_gdax_quote(quote_name):
 
 
 def get_coinmarketcap_data():
-    COINMARKETCAP_STR = "COINMARKETCAP_STR"
-    if market_cap_cache.get(COINMARKETCAP_STR):
-        logger.info("Got hit for cache COINMARKETCAP")
-        return market_cap_cache.get(COINMARKETCAP_STR)
+    try:
+        return cache[COINMARKETCAP_KEY]
+    except KeyError:
+        logger.info("Did not get a hit for {}".format(COINMARKETCAP_KEY))
 
     url = 'https://api.coinmarketcap.com/v1/global/'
     try:
-        result = json.load(urllib.request.urlopen(url))
-    except Exception as e:
-        logger.exception("Could not get quote from exchange COINMARKETCAP")
-        return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
+        r = requests.get(url)
+        r.raise_for_status()
+        result = r.json()
+    except requests.HTTPError as e:
+        logger.exception("Could not get quote from {}".format(COINMARKETCAP_KEY))
+        raise
 
     total_market_cap = result['total_market_cap_usd']
     bitcoin_percent_dominance = result['bitcoin_percentage_of_market_cap']
@@ -92,7 +95,10 @@ def get_coinmarketcap_data():
 
     for ticker in tickers_to_get:
         try:
-            results.append(json.load(urllib.request.urlopen(url.format(ticker))))
+            r = requests.get(url.format(ticker))
+            r.raise_for_status()
+            result = r.json()
+            results.append(result)
         except Exception as e:
             logger.exception("Could not get quote from exchange COINMARKETCAP")
             return "CoinMarketCap", "", "Could not get info from CoinMarketCap"
@@ -104,7 +110,7 @@ def get_coinmarketcap_data():
 
     final_result = (total_market_cap, bitcoin_percent_dominance, eth_btc_volume_ratio)
 
-    market_cap_cache[COINMARKETCAP_STR] = final_result
+    market_cap_cache[COINMARKETCAP_KEY] = final_result
 
     return final_result
 
