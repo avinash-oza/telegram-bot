@@ -16,4 +16,5 @@ There are 2 goals in here: Create a bot to communicate with at home, provide a w
  Currently this requires a lot of packages as it is in python 2.7:
  * Create a virtualenv (strongly reccomended)
  * `pip install -r requirements.txt`
- * `python start_telegram_bot.py & ` (this will start the bot and background it. You may see some warnings)
+ * `pip install .`
+ * use the `run-telegram-bot` to start up
