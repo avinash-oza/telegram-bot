@@ -2,15 +2,14 @@ import configparser
 import logging
 import subprocess
 import time
-from enum import Enum
 
 import requests
 from expiringdict import ExpiringDict
 from telegram import InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler, \
     CallbackQueryHandler
-from telegram.replykeyboardmarkup import ReplyKeyboardMarkup
 
+from telegram_bot.nagios import get_unsent_nagios_alerts
 from .decorators import check_sender_admin
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
@@ -41,52 +40,22 @@ class TelegramBot(object):
         """
         admin_id = self.config.get('ADMIN', 'id')
         logger.info("Getting alerts from db")
+        url = self.config.get('ALERTS', 'nagios_alerts_endpoint')
 
-        hostname = self.config.get('ALERTS', 'hostname')
-        url = 'http://{0}/get_nagios_unsent_alerts'.format(hostname)
-        r = requests.get(url)
-        if r.status_code != 200:
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert', reply_keyboard=None)
+        try:
+            message_text, keyboard_buttons = get_unsent_nagios_alerts(url)
+        except Exception as e:
+            logger.exception("When retrieving alerts")
             return ConversationHandler.END
 
-        unsent_alerts = r.json()
-        if not unsent_alerts: # Nothing to do
-            return ConversationHandler.END
+        if message_text:
+            # there are alerts to send
+            reply_keyboard = InlineKeyboardMarkup(keyboard_buttons, one_time_keyboard=True)
+            #TODO: implement and enable the keyboard above
+            reply_keyboard = None
+            bot.sendMessage(chat_id=admin_id, text=message_text, reply_markup=reply_keyboard)
 
-
-        message_str = """"""
-        for one_alert in unsent_alerts: # No need to check count as server limits it
-
-            alert_id = one_alert['id']
-            url = 'http://{0}/update_alert/{1}/SENT'.format(hostname, alert_id)
-            r = requests.get(url)
-            if r.status_code != 200:
-                bot.sendMessage(chat_id=sender_id, text='An exception occured while updating alert status', reply_keyboard=None)
-
-            host_name = one_alert['hostname']
-            service_name = one_alert['hostname']
-            message_str += "Alert ID: {}".format(str(one_alert['id'])) 
-            message_str += one_alert['message_text']
-            if one_alert['acknowledgable']:
-                acknowledgeable_alerts_cache[alert_id] = (host_name, service_name) # Add to dictionary to track
-            message_str += "--------------------\n"
-
-        if message_str:
-            message_str += "{0} messages sent".format(len(unsent_alerts))
-
-        # If there are alerts than can be acknowledged, add the keyboard to acknowledge
-        reply_keyboard = None
-        if acknowledgeable_alerts_cache: # We have some alerts that can be acknowledged
-            options = []  # Stores the keys for the keyboard reply
-            for alert_id, (host, service) in list(acknowledgeable_alerts_cache.items()):
-                key_string = "acknowledge {alert_id} | {host}  {service}".format(alert_id=alert_id, host=host, service=service)
-                options.append([ key_string ]) # Store the key for the keyboard
-
-            # Send the message with the keyboard
-            reply_keyboard = ReplyKeyboardMarkup(options, one_time_keyboard=True)
-        bot.sendMessage(chat_id=admin_id, text=message_str, reply_markup=reply_keyboard)
-
-        logger.info("Finished sending {} alerts".format(len(unsent_alerts)))
+        logger.info("Finished sending {} alerts".format(len(keyboard_buttons)))
 
     def power_status(self, bot, update, args):
         arguments_to_use = ['status', 'timeleft']
@@ -276,8 +245,7 @@ class TelegramBot(object):
         #
         # self.job_queue.run_once(startup_alert, 10)
         # Create the job to check if we have any nagios alerts to send
-        # TODO: Enable this once fixed
-        # self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
+        self.job_queue.run_repeating(self.send_nagios_alerts, 90.0)
         # TODO: Enable this once fixed
         # Add job to alert nagios server we are up
         # if int(self.config.get('ALERTS', 'heartbeat')) == 1:
