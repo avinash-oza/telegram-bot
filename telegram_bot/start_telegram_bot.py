@@ -3,6 +3,7 @@ import logging
 import subprocess
 import time
 
+import os
 import requests
 from expiringdict import ExpiringDict
 from telegram import InlineKeyboardMarkup
@@ -38,7 +39,7 @@ class TelegramBot(object):
         """
         Retrieves alerts and sends them
         """
-        admin_id = self.config.get('ADMIN', 'id')
+        admin_id = [str(one_id) for one_id in os.environ.get('TELEGRAM_BOT_ADMINS', '').split(',')][0]
         logger.info("Getting alerts from db")
         url = self.config.get('ALERTS', 'nagios_alerts_endpoint')
 
