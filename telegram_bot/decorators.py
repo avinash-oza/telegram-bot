@@ -1,18 +1,19 @@
 import logging
+import os
 from functools import wraps
 
 logger = logging.getLogger(__name__)
 
-#TODO: read this from the config
-LIST_OF_ADMINS = []
+#TODO: maybe a better way then env variables?
+LIST_OF_ADMINS = [str(one_id) for one_id in os.environ.get('TELEGRAM_BOT_ADMINS', '').split(',')]
 
 # adapted from telegram-bot snippets
 def check_sender_admin(func):
     @wraps(func)
     def wrapped(_, bot, update, *args, **kwargs):
-        user_id = update.effective_user.id
+        user_id = str(update.effective_user.id)
         if user_id not in LIST_OF_ADMINS:
-            logger.error("User {} is not in the list of admins".format(user_id))
+            logger.error("User {} is not in the list of admins. Admins: {}".format(user_id, LIST_OF_ADMINS))
             bot.sendMessage(chat_id=user_id, text='Not authorized')
             return
         return func(_, bot, update, *args, **kwargs)
