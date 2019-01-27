@@ -1,10 +1,7 @@
-import configparser
 import logging
-import subprocess
+import os
 import time
 
-import os
-import requests
 from expiringdict import ExpiringDict
 from telegram import InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler, \
@@ -25,15 +22,13 @@ GARAGE_CONFIRMED_STATE = 1
 
 class TelegramBot(object):
 
-    def __init__(self, config_file='bot.config'):
-        self.config = configparser.ConfigParser()
-        self.config.read(config_file)
+    def __init__(self):
         self.updater = Updater(token=os.environ['TELEGRAM_BOT_API_KEY'])
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
         # Garage door params
-        self.garage_handler = GarageDoorHandler(self.config)
+        self.garage_handler = GarageDoorHandler()
 
     def send_nagios_alerts(self, bot, job):
         """
@@ -58,58 +53,58 @@ class TelegramBot(object):
 
         logger.info("Finished sending {} alerts".format(len(keyboard_buttons)))
 
-    def power_status(self, bot, update, args):
-        arguments_to_use = ['status', 'timeleft']
-        complete_output = ""
+    # def power_status(self, bot, update, args):
+    #     arguments_to_use = ['status', 'timeleft']
+    #     complete_output = ""
+    #
+    #     logger.info("Got request to check power status", sender_id=update.message.chat_id)
+    #     for one_arg in arguments_to_use:
+    #         command_to_run = ['/usr/lib/nagios/plugins/check_apcupsd {0}'.format(one_arg)]
+    #         complete_output += subprocess.check_output(command_to_run, shell=True)
+    #
+    #     bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
+    #     logger.info("Sent message for power status", sender_id=update.message.chat_id)
 
-        logger.info("Got request to check power status", sender_id=update.message.chat_id)
-        for one_arg in arguments_to_use:
-            command_to_run = ['/usr/lib/nagios/plugins/check_apcupsd {0}'.format(one_arg)]
-            complete_output += subprocess.check_output(command_to_run, shell=True)
 
-        bot.sendMessage(chat_id=update.message.chat_id, text=complete_output)
-        logger.info("Sent message for power status", sender_id=update.message.chat_id)
-
-
-    def acknowledge_alert(self, bot, update, groups):
-        """
-        Given a string in the form of "acknowledge <ID> | <SOME DESC>" this sends the appropriate nagios commands
-        :param bot:
-        :param update:
-        :param groups: tuple of regex group
-        :return:
-        """
-        sender_id = update.message.chat_id
-        logger.info("Got request to acknowledge id {0}".format(groups, sender_id=sender_id))
-        if not groups:
-            # did not pass us an alert id
-            bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
-            return ConversationHandler.END
-
-        try:
-            _, alert_id = groups[0].split(' ')
-            alert_id = alert_id.strip()
-        except IndexError:
-             bot.sendMessage(chat_id=update.message.chat_id, text="Invalid string {} passed to acknowledge".format(groups[0]))
-             return ConversationHandler.END
-
-        if alert_id not in acknowledgeable_alerts_cache:
-            bot.sendMessage(chat_id=update.message.chat_id, text="Did not find id {} in cache".format(groups[0]))
-            logger.error("Attempted to access id {}. Cache had {}".format(alert_id, acknowledgeable_alerts_cache))
-            return ConversationHandler.END
-
-        hostname = self.config.get('ALERTS', 'hostname')
-        url = 'http://{0}/acknowledge/{1}'.format(hostname, alert_id)
-        r = requests.get(url)
-        if r.status_code != 200:
-            bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert', reply_keyboard=None)
-            return ConversationHandler.END
-
-        text = "Successfully scheduled downtime for id {0} for 1 day".format(alert_id)
-        logger.info(text)
-        bot.sendMessage(chat_id=sender_id, text=text, reply_keyboard=None)
-
-        return ConversationHandler.END
+    # def acknowledge_alert(self, bot, update, groups):
+    #     """
+    #     Given a string in the form of "acknowledge <ID> | <SOME DESC>" this sends the appropriate nagios commands
+    #     :param bot:
+    #     :param update:
+    #     :param groups: tuple of regex group
+    #     :return:
+    #     """
+    #     sender_id = update.message.chat_id
+    #     logger.info("Got request to acknowledge id {0}".format(groups, sender_id=sender_id))
+    #     if not groups:
+    #         # did not pass us an alert id
+    #         bot.sendMessage(chat_id=update.message.chat_id, text="No alert specified")
+    #         return ConversationHandler.END
+    #
+    #     try:
+    #         _, alert_id = groups[0].split(' ')
+    #         alert_id = alert_id.strip()
+    #     except IndexError:
+    #          bot.sendMessage(chat_id=update.message.chat_id, text="Invalid string {} passed to acknowledge".format(groups[0]))
+    #          return ConversationHandler.END
+    #
+    #     if alert_id not in acknowledgeable_alerts_cache:
+    #         bot.sendMessage(chat_id=update.message.chat_id, text="Did not find id {} in cache".format(groups[0]))
+    #         logger.error("Attempted to access id {}. Cache had {}".format(alert_id, acknowledgeable_alerts_cache))
+    #         return ConversationHandler.END
+    #
+    #     hostname = self.config.get('ALERTS', 'hostname')
+    #     url = 'http://{0}/acknowledge/{1}'.format(hostname, alert_id)
+    #     r = requests.get(url)
+    #     if r.status_code != 200:
+    #         bot.sendMessage(chat_id=sender_id, text='An exception occured while acknowledging alert', reply_keyboard=None)
+    #         return ConversationHandler.END
+    #
+    #     text = "Successfully scheduled downtime for id {0} for 1 day".format(alert_id)
+    #     logger.info(text)
+    #     bot.sendMessage(chat_id=sender_id, text=text, reply_keyboard=None)
+    #
+    #     return ConversationHandler.END
 
     # Action for operating the garage
     @check_sender_admin
@@ -201,25 +196,25 @@ class TelegramBot(object):
 
         return ConversationHandler.END # Make sure to end any conversations
 
-    def heartbeat_handler(self, bot, update):
-        # Sents a signal to the nagios server that we are still up
-        dict_to_send = [{'return_code': "0",
-                        'plugin_output': "Telegram bot is up",
-                        'service_description': "Telegram Bot Available",
-                        'hostname': 'monitoring-station',
-                        }]
-        url = self.config.get('ALERTS', 'passive_alerts_endpoint')
-
-        requests.post(url, json=dict_to_send)
+    # def heartbeat_handler(self, bot, update):
+    #     # Sents a signal to the nagios server that we are still up
+    #     dict_to_send = [{'return_code': "0",
+    #                     'plugin_output': "Telegram bot is up",
+    #                     'service_description': "Telegram Bot Available",
+    #                     'hostname': 'monitoring-station',
+    #                     }]
+    #     url = self.config.get('ALERTS', 'passive_alerts_endpoint')
+    #
+    #     requests.post(url, json=dict_to_send)
 
     def setup(self):
         logger.info("Starting up TelegramBot")
 
-        power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
-        self.dispatcher.add_handler(power_status_handler)
+        # power_status_handler = CommandHandler('powerstatus', self.power_status, pass_args=True)
+        # self.dispatcher.add_handler(power_status_handler)
 
-        acknowledge_alert_handler = RegexHandler('^(acknowledge \d+)', self.acknowledge_alert, pass_groups=True)
-        self.dispatcher.add_handler(acknowledge_alert_handler)
+        # acknowledge_alert_handler = RegexHandler('^(acknowledge \d+)', self.acknowledge_alert, pass_groups=True)
+        # self.dispatcher.add_handler(acknowledge_alert_handler)
 
         # Handler for opening the garage
         garage_menu_handler = ConversationHandler(

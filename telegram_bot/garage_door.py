@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 
 import boto3
 from telegram import InlineKeyboardButton
@@ -10,20 +11,11 @@ logger.setLevel(logging.DEBUG)  # TODO: Remove this later on
 
 
 class GarageDoorHandler:
-    def __init__(self, config):
-        hostname = config.get('GARAGE', 'hostname')
-        port = config.get('GARAGE', 'port')
-
-        user = config.get('GARAGE', 'username')
-        password = config.get('GARAGE', 'password')
-
-        self.garage_door_base_url = 'http://{0}:{1}'.format(hostname, port)
-        self.garage_door_user_pass = (user, password)
-
+    def __init__(self):
         # Queue where we will listen for responses on
         self.sqs = boto3.client('sqs')
         self.sns = boto3.client('sns')
-        self._garage_request_arn = config.get('GARAGE', 'request_arn')
+        self._garage_request_arn = os.environ['TELEGRAM_GARAGE_REQUEST_ARN']
         self._garage_response_queue_url = self.sqs.get_queue_url(QueueName='garage-responses')['QueueUrl']
 
     def get_garage_position(self, garage_name='ALL'):
