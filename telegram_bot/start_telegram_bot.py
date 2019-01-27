@@ -28,7 +28,7 @@ class TelegramBot(object):
     def __init__(self, config_file='bot.config'):
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
-        self.updater = Updater(token=self.config.get('KEYS', 'bot_api'))
+        self.updater = Updater(token=os.environ['TELEGRAM_BOT_API_KEY'])
         self.dispatcher = self.updater.dispatcher
         self.job_queue = self.updater.job_queue
         self.garage_expire_request = None # job to handle expiring the codes if a garage is not selected
@@ -41,7 +41,7 @@ class TelegramBot(object):
         """
         admin_id = [str(one_id) for one_id in os.environ.get('TELEGRAM_BOT_ADMINS', '').split(',')][0]
         logger.info("Getting alerts from db")
-        url = self.config.get('ALERTS', 'nagios_alerts_endpoint')
+        url = os.environ['TELEGRAM_NAGIOS_ALERTS_ENDPOINT']
 
         try:
             message_text, keyboard_buttons = get_unsent_nagios_alerts(url)
