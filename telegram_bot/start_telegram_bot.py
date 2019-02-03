@@ -7,7 +7,7 @@ from telegram import InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler, \
     CallbackQueryHandler
 
-from telegram_bot.nagios import get_unsent_nagios_alerts
+from telegram_bot.messages import get_unsent_messages
 from .decorators import check_sender_admin
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
@@ -39,7 +39,7 @@ class TelegramBot(object):
         url = os.environ['TELEGRAM_NAGIOS_ALERTS_ENDPOINT']
 
         try:
-            message_text, keyboard_buttons = get_unsent_nagios_alerts(url)
+            message_text, keyboard_buttons = get_unsent_messages(url)
         except Exception as e:
             logger.exception("When retrieving alerts")
             return ConversationHandler.END
