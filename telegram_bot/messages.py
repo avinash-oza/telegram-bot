@@ -15,7 +15,8 @@ def get_unsent_messages(endpoint_url):
 
         # construct the text message
         message_to_send += "Message ID: {}\n".format(alert_number)
-        message_to_send += one_alert['message_text']
+        message_to_send += one_alert['message_text'] + '\n'
+
         if one_alert['can_acknowledge']:
             return_keyboard.append([InlineKeyboardButton('Acknowledge alert {}'.format(alert_number),
                                                          callback_data='nagios_ack {}'.format(alert_id))])

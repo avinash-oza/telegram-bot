@@ -1,5 +1,5 @@
 FROM python:latest
-ARG TELEGRAM_BOT_RELEASE=v0.2b7
+ARG TELEGRAM_BOT_RELEASE=v0.2b9
 VOLUME ["/root/.aws"]
 
 RUN mkdir -p /tmp/telegram-bot \
