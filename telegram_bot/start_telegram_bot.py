@@ -119,13 +119,13 @@ class TelegramBot(object):
 
         # Handler for opening the garage
         garage_menu_handler = ConversationHandler(
-                entry_points = [CommandHandler('garage', self.garage),
-                                RegexHandler('^(Garage|garage)', self.garage),
-                                RegexHandler('^(Ga)', self.garage)],
-                states= {GARAGE_CONFIRMED_STATE: [CallbackQueryHandler(self.garage, pattern='^garage')]},
-                fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)],
+            entry_points=[CommandHandler('garage', self.garage),
+                          RegexHandler('^(Garage|garage)', self.garage),
+                          RegexHandler('^(Ga)', self.garage)],
+            states={GARAGE_CONFIRMED_STATE: [CallbackQueryHandler(self.garage, pattern='^garage')]},
+            fallbacks=[MessageHandler(Filters.command | Filters.text, self.unknown_handler)],
             conversation_timeout=15
-                )
+        )
         self.dispatcher.add_handler(garage_menu_handler)
 
         crypto_quotes_handler = CommandHandler('quotes', self.get_current_quotes, pass_args=True)
