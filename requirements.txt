@@ -17,4 +17,4 @@ requests==2.21.0
 s3transfer==0.1.13
 six==1.12.0
 structlog==18.2.0
-urllib3==1.24.1
+urllib3==1.24.2
