@@ -10,7 +10,7 @@ LIST_OF_ADMINS = [str(one_id) for one_id in os.environ.get('TELEGRAM_BOT_ADMINS'
 # adapted from telegram-bot snippets
 def check_sender_admin(func):
     @wraps(func)
-    def wrapped(_, bot, update, *args, **kwargs):
+    def wrapped(bot, update, *args, **kwargs):
         user_id = str(update.effective_user.id)
         if user_id not in LIST_OF_ADMINS:
             logger.error("User {} is not in the list of admins. Admins: {}".format(user_id, LIST_OF_ADMINS))

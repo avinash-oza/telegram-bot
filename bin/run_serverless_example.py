@@ -5,6 +5,10 @@ import logging
 
 
 # Logging is cool!
+from telegram.ext import Dispatcher
+
+from telegram_bot.start_telegram_bot import setup_handlers
+
 logger = logging.getLogger()
 if logger.handlers:
     for handler in logger.handlers:
@@ -34,7 +38,9 @@ def configure_telegram():
         logger.error('The TELEGRAM_TOKEN must be set')
         raise NotImplementedError
 
-    return telegram.Bot(TELEGRAM_TOKEN)
+    bot = telegram.Bot(TELEGRAM_TOKEN)
+
+    return bot
 
 
 def webhook(event, context):
@@ -43,6 +49,10 @@ def webhook(event, context):
     """
 
     bot = configure_telegram()
+    dispatcher = Dispatcher(bot, None, workers=0)
+
+    setup_handlers(dispatcher)
+
     logger.info('Event: {}'.format(event))
 
     if event.get('httpMethod') == 'POST' and event.get('body'):
@@ -51,7 +61,9 @@ def webhook(event, context):
         chat_id = update.message.chat.id
         text = update.message.text
 
-        bot.sendMessage(chat_id=chat_id, text=text)
+        dispatcher.process_update(update)
+
+        logger.info(f"chat_id={chat_id}, TEXT:{text}")
         logger.info('Message sent')
 
         return OK_RESPONSE
@@ -80,13 +92,13 @@ def set_webhook(event, context):
 
 
 if __name__ == '__main__':
-    user_id = 1234 # sample id for testing
+    user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
 
     msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
                                                             'language_code': 'en'},
                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-                                                   'date': 1573350422, 'text': 'Test2'}}
+                                                   'date': 1573350422, 'text': '/quotes'}}
     d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
          'requestContext': {'httpMethod': 'POST',
                             'requestTime': '10/Nov/2019:01:51:04 +0000'},
