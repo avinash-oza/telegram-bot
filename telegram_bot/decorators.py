@@ -16,5 +16,5 @@ def check_sender_admin(func):
             logger.error("User {} is not in the list of admins. Admins: {}".format(user_id, LIST_OF_ADMINS))
             bot.sendMessage(chat_id=user_id, text='Not authorized')
             return
-        return func(_, bot, update, *args, **kwargs)
+        return func(bot, update, *args, **kwargs)
     return wrapped
