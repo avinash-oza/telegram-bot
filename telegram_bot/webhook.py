@@ -58,8 +58,8 @@ def webhook(event, context):
     if event.get('httpMethod') == 'POST' and event.get('body'):
         logger.info('Message received')
         update = telegram.Update.de_json(json.loads(event.get('body')), bot)
-        chat_id = update.message.chat.id
-        text = update.message.text
+        chat_id = update.effective_user
+        text = update.effective_message
 
         dispatcher.process_update(update)
 
@@ -90,35 +90,34 @@ def set_webhook(event, context):
     return ERROR_RESPONSE
 
 
-
-if __name__ == '__main__':
-    user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
-
-    # standard sample message
-    # msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
-    #                                                'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-    #                                                         'language_code': 'en'},
-    #                                                'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-    #                                                'date': 1573350422, 'text': 'Ga'}}
-    # sample callback message
-    msg_body = {'update_id': 57665158,
-                'message': {'message_id': 458,
-                            'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-                                     'language_code': 'en'},
-                            'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-                            'date': 1573350422, 'text': 'Ga'},
-
-                'callback_query': {'id': user_id,
-                                   'from_user': user_id,
-                                   'chat_instance': '34567',
-                                   'data': 'garage cancel'
-                                   }
-                }
-
-    d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
-         'requestContext': {'httpMethod': 'POST',
-                            'requestTime': '10/Nov/2019:01:51:04 +0000'},
-         'body': json.dumps(msg_body),
-         'isBase64Encoded': False}
-
-    webhook(d, {})
+# if __name__ == '__main__':
+    # user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
+    #
+    # # standard sample message
+    # # msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
+    # #                                                'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
+    # #                                                         'language_code': 'en'},
+    # #                                                'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
+    # #                                                'date': 1573350422, 'text': 'Ga'}}
+    # # sample callback message
+    # msg_body = {'update_id': 57665158,
+    #             'message': {'message_id': 458,
+    #                         'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
+    #                                  'language_code': 'en'},
+    #                         'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
+    #                         'date': 1573350422, 'text': 'Ga'},
+    #
+    #             'callback_query': {'id': user_id,
+    #                                'from_user': user_id,
+    #                                'chat_instance': '34567',
+    #                                'data': 'garage cancel'
+    #                                }
+    #             }
+    #
+    # d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
+    #      'requestContext': {'httpMethod': 'POST',
+    #                         'requestTime': '10/Nov/2019:01:51:04 +0000'},
+    #      'body': json.dumps(msg_body),
+    #      'isBase64Encoded': False}
+    #
+    # webhook(d, {})

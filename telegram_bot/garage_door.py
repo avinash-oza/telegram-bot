@@ -25,8 +25,9 @@ class GarageDoorHandler:
 
     def control_garage(self, garage_name, action):
         message = {'type': 'CONTROL', 'garage_name': garage_name, 'action': action}
-
-        return self._send_request_and_parse_sqs_response(message)
+        # TODO: DISABLED FOR TESTING
+        return []
+        # return self._send_request_and_parse_sqs_response(message)
 
     def _send_request_and_parse_sqs_response(self, message):
         response = self.sns.publish(TargetArn=self._garage_request_arn,
