@@ -11,11 +11,26 @@ from .market_quotes import get_current_quotes
 
 logger = logging.getLogger(__name__)
 
-garage_handler = GarageDoorHandler()
+
+def setup_handlers(dispatcher):
+    # Handler for opening the garage
+    for s in ['garage', '^(Garage|garage)', '^(Ga)', '^(ga)']:
+        dispatcher.add_handler(RegexHandler(s, garage_actions_handler))
+
+    dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
+    # END garage door handlers
+
+    dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
+
+    # Add handler for messages we aren't handling
+    dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
 # Action for operating the garage
 @check_sender_admin
 def garage_actions_handler(bot, update):
+
+    garage_handler = GarageDoorHandler()
+
     return_message = """"""
     sender_id = update.effective_user.id
     # Gives menu to select which garage to open
@@ -97,17 +112,3 @@ def unknown_handler(bot, update):
     logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
     bot.sendMessage(chat_id=chat_id, text="Did not understand message")
-
-
-def setup_handlers(dispatcher):
-    # Handler for opening the garage
-    for s in ['garage', '^(Garage|garage)', '^(Ga)', '^(ga)']:
-        dispatcher.add_handler(RegexHandler(s, garage_actions_handler))
-
-    dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
-    # END garage door handlers
-
-    dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
-
-    # Add handler for messages we aren't handling
-    dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
