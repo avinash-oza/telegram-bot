@@ -2,7 +2,7 @@ import logging
 import time
 
 from telegram import InlineKeyboardMarkup
-from telegram.ext import CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler, \
+from telegram.ext import CommandHandler, MessageHandler, Filters, RegexHandler, \
     CallbackQueryHandler
 
 from .decorators import check_sender_admin
@@ -10,7 +10,6 @@ from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  #TODO: Remove this later on
 
 garage_handler = GarageDoorHandler()
 
@@ -27,7 +26,7 @@ def garage_actions_handler(bot, update):
         if not garage_statuses:
             bot.sendMessage(chat_id=sender_id, text='An exception occurred while getting garage status',
                             reply_keyboard=None)
-            return ConversationHandler.END
+            return
 
         # Create the response message
         return_message += "Pick a garage:\n"
@@ -38,14 +37,15 @@ def garage_actions_handler(bot, update):
         reply_keyboard = InlineKeyboardMarkup(keyboard_options, one_time_keyboard=True)
         bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
 
-        return ConversationHandler.END
+        return
 
     if update.callback_query is not None:
         update.callback_query.answer()
         action_and_garage = update.callback_query.data
         if action_and_garage == 'garage cancel':
+            logger.info("Cancelled request to open garage")
             update.callback_query.edit_message_text('Not doing anything')
-            return ConversationHandler.END
+            return
 
         # process a confirm action
         action, garage = action_and_garage.lstrip('garage ').split(' ')
@@ -54,15 +54,15 @@ def garage_actions_handler(bot, update):
         update.callback_query.edit_message_text('Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
         r = garage_handler.control_garage(garage, action)
 
-        if not len(r):
+        if not r:
             update.callback_query.edit_message_text("An error occurred while trying to trigger the garage.")
-            return ConversationHandler.END
+            return
 
         # check for any errors in triggering
         if any([resp['error'] for resp in r]):
             # join the errors together
             update.callback_query.edit_message_text('|'.join(resp['message'] for resp in r))
-            return ConversationHandler.END
+            return
 
         # No errors
 
@@ -81,8 +81,7 @@ def garage_actions_handler(bot, update):
 
         update.callback_query.edit_message_text(return_message)
 
-        return ConversationHandler.END
-
+        return
 
 @check_sender_admin
 def get_current_quotes_handler(bot, update, args):
@@ -91,24 +90,17 @@ def get_current_quotes_handler(bot, update, args):
     quotes_response = get_current_quotes(quote_name)
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=quotes_response)
-    return ConversationHandler.END
-
 
 def unknown_handler(bot, update):
-    if update.message:
-        chat_id = update.message.chat_id
-    else:
-        chat_id = update.channel.chat_id
+    chat_id = update.effective_user.id
     logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
     bot.sendMessage(chat_id=chat_id, text="Did not understand message")
 
-    return ConversationHandler.END  # Make sure to end any conversations
-
 
 def setup_handlers(dispatcher):
     # Handler for opening the garage
-    for s in ['garage', '^(Garage|garage)', '^(Ga)']:
+    for s in ['garage', '^(Garage|garage)', '^(Ga)', '^(ga)']:
         dispatcher.add_handler(RegexHandler(s, garage_actions_handler))
 
     dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
