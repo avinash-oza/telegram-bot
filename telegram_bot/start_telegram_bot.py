@@ -5,6 +5,7 @@ from telegram import InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, RegexHandler, \
     CallbackQueryHandler
 
+from telegram_bot.temperature_data import get_temperatures
 from .decorators import check_sender_admin
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
@@ -21,6 +22,8 @@ def setup_handlers(dispatcher):
     # END garage door handlers
 
     dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
+    for s in ['^([Tt]emp)', '^([Tt]emps)']:
+        dispatcher.add_handler(RegexHandler(s, temperatures_handler))
 
     # Add handler for messages we aren't handling
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
@@ -106,6 +109,15 @@ def get_current_quotes_handler(bot, update):
     quotes_response = get_current_quotes(quote_name)
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=quotes_response)
+
+@check_sender_admin
+def temperatures_handler(bot, update):
+    msg = get_temperatures()
+    if msg is None:
+        msg = "An error occurred while trying to get temperatures"
+
+    chat_id = update.effective_user.id
+    bot.sendMessage(chat_id=chat_id, text=msg)
 
 def unknown_handler(bot, update):
     chat_id = update.effective_user.id
