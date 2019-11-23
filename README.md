@@ -3,7 +3,6 @@ This bot uses `python-telegram-bot` to implement a simple bot that provides acce
 
 * control garages via AWS SNS
 * provide crypto prices via the GDAX and Gemini API
-* provide nagios alerts via a REST API
  
 ### Running ###
  * `pip install -r requirements.txt`
