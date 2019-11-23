@@ -87,6 +87,7 @@ def garage_actions_handler(bot, update):
 @check_sender_admin
 def get_current_quotes_handler(bot, update, args):
     quote_name = "ETH" if not args else str(args[0])
+    logger.info(f"Got request for {quote_name}")
     quotes_response = get_current_quotes(quote_name)
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=quotes_response)

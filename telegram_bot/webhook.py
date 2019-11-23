@@ -1,19 +1,15 @@
 import json
-import telegram
-import os
 import logging
+import os
 
-
-# Logging is cool!
+import telegram
 from telegram.ext import Dispatcher
 
 from telegram_bot.start_telegram_bot import setup_handlers
 
+logging.basicConfig()
+# logging.basicConfig(format='%(asctime)s %(message)s')
 logger = logging.getLogger()
-if logger.handlers:
-    for handler in logger.handlers:
-        logger.removeHandler(handler)
-logging.basicConfig(level=logging.INFO)
 
 OK_RESPONSE = {
     'statusCode': 200,
@@ -35,8 +31,9 @@ def configure_telegram():
 
     TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_API_KEY')
     if not TELEGRAM_TOKEN:
-        logger.error('The TELEGRAM_TOKEN must be set')
-        raise NotImplementedError
+        msg = 'The TELEGRAM_BOT_API_KEY must be set'
+        logger.error(msg)
+        raise RuntimeError(msg)
 
     bot = telegram.Bot(TELEGRAM_TOKEN)
 
@@ -76,30 +73,35 @@ def set_webhook(event, context):
     Sets the Telegram bot webhook.
     """
 
-    logger.info('Event: {}'.format(event))
+    logger.info('Got request to set webhook')
+    logger.info(f'EVENT: {event}')
+
     bot = configure_telegram()
     url = 'https://{}/{}/'.format(
         event.get('headers').get('Host'),
         event.get('requestContext').get('stage'),
     )
+    logger.info(f'Setting webhook url={url}')
     webhook = bot.set_webhook(url)
 
+
     if webhook:
+        logger.info(f'Successfully set webhook')
         return OK_RESPONSE
 
     return ERROR_RESPONSE
 
 
 # if __name__ == '__main__':
-    # user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
-    #
-    # # standard sample message
-    # # msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
-    # #                                                'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-    # #                                                         'language_code': 'en'},
-    # #                                                'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-    # #                                                'date': 1573350422, 'text': 'Ga'}}
-    # # sample callback message
+#     user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
+#
+#     # standard sample message
+#     msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
+#                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
+#                                                             'language_code': 'en'},
+#                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
+#                                                    'date': 1573350422, 'text': '/quotes'}}
+    # sample callback message
     # msg_body = {'update_id': 57665158,
     #             'message': {'message_id': 458,
     #                         'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
