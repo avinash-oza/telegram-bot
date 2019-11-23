@@ -7,8 +7,13 @@ from telegram.ext import Dispatcher
 
 from telegram_bot.start_telegram_bot import setup_handlers
 
-logging.basicConfig()
-# logging.basicConfig(format='%(asctime)s %(message)s')
+if len(logging.getLogger().handlers) > 0:
+    # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
+    # `.basicConfig` does not execute. Thus we set the level directly.
+    logging.getLogger().setLevel(logging.INFO)
+else:
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+
 logger = logging.getLogger()
 
 OK_RESPONSE = {
@@ -100,7 +105,7 @@ def set_webhook(event, context):
 #                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
 #                                                             'language_code': 'en'},
 #                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-#                                                    'date': 1573350422, 'text': '/quotes'}}
+#                                                    'date': 1573350422, 'text': 'quotes'}}
     # sample callback message
     # msg_body = {'update_id': 57665158,
     #             'message': {'message_id': 458,
