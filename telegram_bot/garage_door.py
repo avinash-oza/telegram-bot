@@ -7,16 +7,22 @@ import boto3
 from telegram import InlineKeyboardButton
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # TODO: Remove this later on
-
 
 class GarageDoorHandler:
     def __init__(self):
-        # Queue where we will listen for responses on
         self.sqs = boto3.client('sqs')
         self.sns = boto3.client('sns')
-        self._garage_request_arn = os.environ['TELEGRAM_GARAGE_REQUEST_ARN']
-        self._garage_response_queue_url = self.sqs.get_queue_url(QueueName='garage-responses')['QueueUrl']
+
+    @property
+    def _garage_request_arn(self):
+        req_arn = os.environ.get('TELEGRAM_GARAGE_REQUEST_ARN')
+        if req_arn is None:
+            logger.error("TELEGRAM_GARAGE_REQUEST_ARN is not set, no garage functionality available")
+        return req_arn
+
+    @property
+    def _garage_response_queue_url(self):
+        return self.sqs.get_queue_url(QueueName='garage-responses')['QueueUrl']
 
     def get_garage_position(self, garage_name='ALL'):
         # Returns whether the garage is open or closed
@@ -25,10 +31,12 @@ class GarageDoorHandler:
 
     def control_garage(self, garage_name, action):
         message = {'type': 'CONTROL', 'garage_name': garage_name, 'action': action}
-
         return self._send_request_and_parse_sqs_response(message)
 
     def _send_request_and_parse_sqs_response(self, message):
+        if self._garage_request_arn is None:
+            return [] # cannot do anything at this point
+
         response = self.sns.publish(TargetArn=self._garage_request_arn,
                                     Message=json.dumps({'default': json.dumps(message)}),
                                     Subject='Garage Request',

@@ -1,5 +1,6 @@
 # Config
-bot.config
+telegram-bot.zip
+package/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
