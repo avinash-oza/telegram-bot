@@ -2,7 +2,7 @@ import logging
 import time
 
 from telegram import InlineKeyboardMarkup
-from telegram.ext import CommandHandler, MessageHandler, Filters, RegexHandler, \
+from telegram.ext import MessageHandler, Filters, RegexHandler, \
     CallbackQueryHandler
 
 from .decorators import check_sender_admin
@@ -84,8 +84,9 @@ def garage_actions_handler(bot, update):
         return
 
 @check_sender_admin
-def get_current_quotes_handler(bot, update, args):
-    quote_name = "ETH" if not args else str(args[0])
+def get_current_quotes_handler(bot, update):
+    command_args = update.effective_message.text.lstrip('quotes ')
+    quote_name = "ETH" if not command_args else command_args
     logger.info(f"Got request for {quote_name}")
     quotes_response = get_current_quotes(quote_name)
     chat_id = update.effective_user.id
@@ -106,7 +107,7 @@ def setup_handlers(dispatcher):
     dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
     # END garage door handlers
 
-    dispatcher.add_handler(CommandHandler('quotes', get_current_quotes_handler,  pass_args=True))
+    dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
 
     # Add handler for messages we aren't handling
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
