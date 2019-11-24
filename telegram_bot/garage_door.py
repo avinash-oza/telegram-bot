@@ -1,8 +1,8 @@
-import datetime
 import json
 import logging
 import os
 
+import arrow
 import boto3
 from telegram import InlineKeyboardButton
 
@@ -71,7 +71,7 @@ class GarageDoorHandler:
         :return: str
         """
         return_message = ""
-        current_time = datetime.datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        current_time = arrow.now().strftime('%Y-%m-%d %I:%M:%S %p')
 
         for one_garage_dict in garage_statuses:
             garage_name = one_garage_dict['garage_name']
