@@ -5,7 +5,7 @@ import os
 import telegram
 from telegram.ext import Dispatcher
 
-from telegram_bot.start_telegram_bot import setup_handlers
+from telegram_bot.handlers import setup_handlers
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
