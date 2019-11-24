@@ -103,7 +103,7 @@ def garage_actions_handler(bot, update):
 
 @check_sender_admin
 def get_current_quotes_handler(bot, update):
-    command_args = update.effective_message.text.lstrip('quotes ')
+    command_args = update.effective_message.text.lower().lstrip('quotes ')
     quote_name = "ETH" if not command_args else command_args
     logger.info(f"Got request for {quote_name}")
     quotes_response = get_current_quotes(quote_name)
