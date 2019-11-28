@@ -1,5 +1,6 @@
 from unittest import TestCase, mock
 
+from requests import HTTPError
 from telegram_bot.temperature_data import get_temperatures
 
 
@@ -41,3 +42,13 @@ class HandlersTestCase(TestCase):
 
         self.assertEqual(resp_text,
                          "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37F -> 01/02 05:10:00 AM\nGARAGE: 47F -> 01/02 05:27:00 AM\n")
+
+    @mock.patch('telegram_bot.temperature_data.requests.get')
+    @mock.patch('arrow.now')
+    def test_get_temperatures_http_exception(self, mock_arrow_now, mock_requests_get, mock_api_key, *_):
+        mock_arrow_now.return_value.strftime.return_value = '2019-01-01 10:10:00 PM'
+        mock_requests_get.return_value.raise_for_status.side_effect = HTTPError("Test error")
+        resp_text = get_temperatures('ALL')
+
+        self.assertEqual(resp_text,
+                         "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: Exception on getting value\nGARAGE: Exception on getting value\n")
