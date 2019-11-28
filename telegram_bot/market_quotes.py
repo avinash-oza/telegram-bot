@@ -91,7 +91,7 @@ def get_coinmarketcap_data(*args, **kwargs):
 def get_current_quotes(quote_name='ETH'):
     key_func_mapping = {(GDAX_KEY, quote_name): get_gdax_quote,
                         (GEMINI_KEY, quote_name): get_gemini_quote,
-                        (COINMARKETCAP_KEY, quote_name): get_coinmarketcap_data
+#                       (COINMARKETCAP_KEY, quote_name): get_coinmarketcap_data
                         }
     # cache the time as well
     try:

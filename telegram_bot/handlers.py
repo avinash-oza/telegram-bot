@@ -106,14 +106,19 @@ def get_current_quotes_handler(bot, update):
     command_args = update.effective_message.text.lower().lstrip('quotes ')
     quote_name = "ETH" if not command_args else command_args
     logger.info(f"Got request for {quote_name}")
-    quotes_response = get_current_quotes(quote_name)
+    try:
+        quotes_response = get_current_quotes(quote_name)
+    except Exception as e:
+        quotes_response = "Error occured getting quotes"
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
 @check_sender_admin
 def temperatures_handler(bot, update):
-    msg = get_temperatures()
-    if msg is None:
+    try:
+        msg = get_temperatures()
+    except Exception as e:
+        logger.exception("Error occured getting temperatures")
         msg = "An error occurred while trying to get temperatures"
 
     chat_id = update.effective_user.id
