@@ -26,11 +26,15 @@ def get_temperatures(locations='ALL'):
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             logger.exception(f"Error when getting {loc}")
+            resp_text += f"{loc}: Exception on getting value\n"
         else:
             r = resp.json()
             logger.info(f"Response is {r}")
-            data = r['data'][0]
-            value = data['value']
-            ts = arrow.get(data['timestamp']).to('America/New_York').strftime('%m/%d %I:%M:%S %p')
-            resp_text += f"{loc}: {value}F -> {ts}\n"
+            if 'data' in r and r['data']:
+                data = r['data'][0]
+                value = data['value']
+                ts = arrow.get(data['timestamp']).to('America/New_York').strftime('%m/%d %I:%M:%S %p')
+                resp_text += f"{loc}: {value}F -> {ts}\n"
+            else:
+                resp_text += f"{loc}: Could not get value\n"
     return resp_text
