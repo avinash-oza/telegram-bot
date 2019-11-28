@@ -14,43 +14,46 @@ COINMARKETCAP_KEY = 'COINMARKETCAP'
 TIME_KEY = 'TIME'
 
 
+def get_with_timeout(url, timeout=5):
+    """
+    Gets data with a timeout. When there is no reply, and empty dict is returned
+    :param url:
+    :param timeout:
+    :param error_message:
+    :return:
+    """
+    try:
+        r = requests.get(url, timeout=timeout)
+        r.raise_for_status()
+        result = r.json()
+    except requests.HTTPError as e:
+        logger.exception("Could not get quotes")
+        return {}
+    else:
+        return result
+
 def get_gemini_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ethusd", "BTC": "btcusd"}
     quote_name = mapping[quote_name]
 
     # Get quotes from API
-    url = 'https://api.gemini.com/v1/pubticker/{0}'.format(quote_name)
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-        result = r.json()
-    except requests.HTTPError as e:
-        logger.exception("Could not get quote from exchange")
-        raise
-    else:
-        # Store string into cache
-        return "{0} : Bid: {1} Ask: {2}\n".format(GEMINI_KEY, result['bid'], result['ask'])
-
+    url = f'https://api.gemini.com/v1/pubticker/{quote_name}'
+    result = get_with_timeout(url)
+    if result:
+        return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
 
 def get_gdax_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
 
     quote_name = mapping[quote_name]
 
-    url = 'https://api.gdax.com/products/{0}/book'.format(quote_name)
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-        result = r.json()
-    except requests.HTTPError as e:
-        logger.exception("Could not get quote from exchange")
-        raise
+    url = f'https://api.gdax.com/products/{quote_name}/book'
+    result = get_with_timeout(url)
+    if result:
+        bid_price, bid_amount, _ = result['bids'][0]
+        ask_price, ask_amount, _ = result['asks'][0]
 
-    bid_price, bid_amount, _ = result['bids'][0]
-    ask_price, ask_amount, _ = result['asks'][0]
-
-    return "{0} : Bid: {1} Ask: {2}\n".format(GDAX_KEY, bid_price, ask_price)
-
+        return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
 
 def get_coinmarketcap_data(*args, **kwargs):
     url = 'https://api.coinmarketcap.com/v1/global/'
@@ -117,3 +120,6 @@ def get_current_quotes(quote_name='ETH'):
             string_to_send += result
 
     return string_to_send
+
+# if __name__ == '__main__':
+#     print(get_gdax_quote('ETH'))
