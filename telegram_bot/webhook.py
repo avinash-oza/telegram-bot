@@ -68,9 +68,7 @@ def webhook(event, context):
         logger.info(f"chat_id={chat_id}, TEXT:{text}")
         logger.info('Message sent')
 
-        return OK_RESPONSE
-
-    return ERROR_RESPONSE
+    return OK_RESPONSE
 
 
 def set_webhook(event, context):
