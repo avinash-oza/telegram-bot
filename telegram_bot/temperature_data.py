@@ -14,7 +14,7 @@ def get_temperatures(locations='ALL'):
         return None
 
     if locations == 'ALL':
-        locations = ['OUTDOOR', 'GARAGE']
+        locations = ['OUTDOOR', 'GARAGE','APARTMENT1']
 
     dt_format = '%Y-%m-%d %I:%M:%S %p'
     current_time = arrow.now().strftime(dt_format)
