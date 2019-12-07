@@ -85,19 +85,8 @@ def garage_actions_handler(bot, update):
         # No errors
 
         logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage))
-        # update.callback_query.edit_message_text( '|'.join(resp['message'] for resp in r))
-        time.sleep(2)
-        update.callback_query.edit_message_text('Waiting 10 seconds before refreshing...')
 
-        # Wait 10s and send another status response, wait 10s and then send the reply
-        time.sleep(10)
-        garage_statuses = garage_handler.get_garage_position()
-
-        # Create the response message
-        return_message = "Status after {} on the {} garage:\n".format(action, garage)
-        return_message += garage_handler.status_to_string(garage_statuses)
-
-        update.callback_query.edit_message_text(return_message)
+        update.callback_query.edit_message_text('Triggered garage, check status separately')
 
         return
 
