@@ -68,6 +68,10 @@ def webhook(event, context):
         logger.info(f"chat_id={chat_id}, TEXT:{text}")
         logger.info('Message sent')
 
+    elif event.get('httpMethod') == 'GET' and event.get('path') == '/setWebHook':
+        logger.info("Setting webhook")
+        set_webhook(event, context)
+
     return OK_RESPONSE
 
 
@@ -80,10 +84,8 @@ def set_webhook(event, context):
     logger.info(f'EVENT: {event}')
 
     bot = configure_telegram()
-    url = 'https://{}/{}/'.format(
-        event.get('headers').get('Host'),
-        event.get('requestContext').get('stage'),
-    )
+    url = f"https://{event.get('headers').get('Host')}/"
+
     logger.info(f'Setting webhook url={url}')
     webhook = bot.set_webhook(url)
 
