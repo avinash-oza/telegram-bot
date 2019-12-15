@@ -47,7 +47,7 @@ class GarageDoorHandler:
         logger.info("Sent request for garage status: {}. Waiting for response".format(response))
         logger.info("Expecting return message_id: {}".format(expected_return_id))
         responses = self.sqs.receive_message(QueueUrl=self._garage_response_queue_url, MaxNumberOfMessages=10,
-                                             WaitTimeSeconds=10)
+                                             WaitTimeSeconds=3)
         if 'Messages' not in responses:
             logger.error("Did not receive a response about garage status")
             return []
