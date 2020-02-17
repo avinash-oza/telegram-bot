@@ -32,9 +32,9 @@ def get_temperatures(locations='ALL'):
             logger.info(f"Response is {r}")
             if 'data' in r and r['data']:
                 data = r['data'][0]
-                value = data['value']
+                value = float(data['value'])
                 ts = arrow.get(data['timestamp']).to('America/New_York').strftime('%m/%d %I:%M:%S %p')
-                resp_text += f"{loc}: {value}F -> {ts}\n"
+                resp_text += f"{loc}: {value:.2f}F -> {ts}\n"
             else:
                 resp_text += f"{loc}: Could not get value\n"
     return resp_text
