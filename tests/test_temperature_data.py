@@ -15,7 +15,7 @@ class HandlersTestCase(TestCase):
             'data': [{'timestamp': '2019-01-02T10:10:00', 'value': '37'}]}
         resp_text = get_temperatures(['OUTDOOR'])
 
-        self.assertEqual(resp_text, "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37F -> 01/02 05:10:00 AM\n")
+        self.assertEqual(resp_text, "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37.00F -> 01/02 05:10:00 AM\n")
 
     @mock.patch('telegram_bot.temperature_data.requests.get')
     @mock.patch('arrow.now')
@@ -29,7 +29,7 @@ class HandlersTestCase(TestCase):
         resp_text = get_temperatures('ALL')
 
         self.assertEqual(resp_text,
-                         "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37F -> 01/02 05:10:00 AM\nGARAGE: Could not get value\nAPARTMENT1: Could not get value\n")
+                         "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37.00F -> 01/02 05:10:00 AM\nGARAGE: Could not get value\nAPARTMENT1: Could not get value\n")
 
     @mock.patch('telegram_bot.temperature_data.requests.get')
     @mock.patch('arrow.now')
@@ -43,7 +43,7 @@ class HandlersTestCase(TestCase):
         resp_text = get_temperatures('ALL')
 
         self.assertEqual(resp_text,
-                         "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37F -> 01/02 05:10:00 AM\nGARAGE: 47F -> 01/02 05:27:00 AM\nAPARTMENT1: 46.1F -> 01/02 05:29:00 AM\n")
+                         "Time: 2019-01-01 10:10:00 PM\nOUTDOOR: 37.00F -> 01/02 05:10:00 AM\nGARAGE: 47.00F -> 01/02 05:27:00 AM\nAPARTMENT1: 46.10F -> 01/02 05:29:00 AM\n")
 
     @mock.patch('telegram_bot.temperature_data.requests.get')
     @mock.patch('arrow.now')
