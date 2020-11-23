@@ -14,7 +14,7 @@ class ConfigHelper:
         results = self._db.query(TableName='configTable',
                 KeyConditionExpression="lookup_key = :k_name",
                 ExpressionAttributeValues={
-                    ':k_name': {'S': 'telegram-bot+dev'}
+                    ':k_name': {'S': f'telegram-bot+{self._env_name}'}
                     })
         if len(results['Items']) != 1:
             raise ValueError("Got multiple configs for key")
@@ -24,5 +24,5 @@ class ConfigHelper:
         return config
 
 if __name__== '__main__':
-    c = ConfigHelper('dev')
-    print(c.get_config()['key1'])
+    c = ConfigHelper('prod')
+    print(c.get_config())
