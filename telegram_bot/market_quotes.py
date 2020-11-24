@@ -4,6 +4,9 @@ import logging
 
 import requests
 
+from config_util import ConfigHelper
+
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 GEMINI_KEY = 'GEMINI'
@@ -54,10 +57,7 @@ def get_gdax_quote(quote_name, *args, **kwargs):
         return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
 
 def get_coinmarketcap_data(*args, **kwargs):
-    rest_api_id = os.environ.get('TELEGRAM_CMC_REST_API_ID')
-    if rest_api_id is None:
-        logger.error("No TELEGRAM_CMC_REST_API_ID set.")
-        return "Missing key for CMC"
+    rest_api_id = c.get('crypto', 'cmc_rest_api_id')
 
     msg = """"""
     cmc_headers = {'X-CMC_PRO_API_KEY': rest_api_id}
@@ -129,5 +129,5 @@ def get_current_quotes(quote_name='ETH'):
 
     return string_to_send
 
-# if __name__ == '__main__':
-#     print(get_current_quotes('BTC'))
+#f __name__ == '__main__':
+#   print(get_current_quotes('BTC'))

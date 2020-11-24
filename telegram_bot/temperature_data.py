@@ -1,17 +1,15 @@
 import logging
-import os
 
 import arrow
 import requests
+from config_util import ConfigHelper
 
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
 def get_temperatures(locations='ALL'):
-    rest_api_id = os.environ.get('TELEGRAM_TEMP_REST_API_ID')
-    if rest_api_id is None:
-        logger.error("No TELEGRAM_TEMP_REST_API_ID set.")
-        return None
+    rest_api_id = c.get('temperature', 'rest_api_id')
 
     if locations == 'ALL':
         locations = ['OUTDOOR', 'GARAGE','APARTMENT1']

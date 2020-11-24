@@ -6,6 +6,7 @@ import telegram
 from telegram.ext import Dispatcher
 
 from telegram_bot.handlers import setup_handlers
+from config_util import ConfigHelper
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
@@ -50,6 +51,7 @@ def webhook(event, context):
     Runs the Telegram webhook.
     """
 
+    config = ConfigHelper()
     bot = configure_telegram()
     dispatcher = Dispatcher(bot, None, workers=0)
 
