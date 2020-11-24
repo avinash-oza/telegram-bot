@@ -12,7 +12,7 @@ def get_temperatures(locations='ALL'):
     rest_api_id = c.get('temperature', 'rest_api_id')
 
     if locations == 'ALL':
-        locations = ['OUTDOOR', 'GARAGE','APARTMENT1']
+        locations = ['OUTDOOR', 'GARAGE', 'APARTMENT1']
 
     dt_format = '%Y-%m-%d %I:%M:%S %p'
     current_time = arrow.now().strftime(dt_format)
@@ -20,7 +20,8 @@ def get_temperatures(locations='ALL'):
     resp_text = f"""Time: {current_time}\n"""
     for loc in locations:
         try:
-            resp = requests.get(fr'https://{rest_api_id}.execute-api.us-east-1.amazonaws.com/dev/temperatures/{loc}/today?limit=1')
+            resp = requests.get(
+                fr'https://{rest_api_id}.execute-api.us-east-1.amazonaws.com/dev/temperatures/{loc}/today?limit=1')
             resp.raise_for_status()
         except requests.exceptions.HTTPError:
             logger.exception(f"Error when getting {loc}")

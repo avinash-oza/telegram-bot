@@ -1,5 +1,4 @@
 import logging
-import os
 from functools import wraps
 
 from config_util import ConfigHelper
@@ -7,7 +6,8 @@ from config_util import ConfigHelper
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
-LIST_OF_ADMINS = [str(s) for s in c.get('telegram','bot_admins')]
+LIST_OF_ADMINS = [str(s) for s in c.get('telegram', 'bot_admins')]
+
 
 # adapted from telegram-bot snippets
 def check_sender_admin(func):
@@ -19,4 +19,5 @@ def check_sender_admin(func):
             bot.sendMessage(chat_id=user_id, text='Not authorized')
             return
         return func(bot, update, *args, **kwargs)
+
     return wrapped

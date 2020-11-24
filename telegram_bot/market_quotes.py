@@ -1,9 +1,7 @@
-import os
 import datetime
 import logging
 
 import requests
-
 from config_util import ConfigHelper
 
 c = ConfigHelper()
@@ -33,6 +31,7 @@ def get_with_timeout(url, timeout=5, headers=None, params=None):
     else:
         return result
 
+
 def get_gemini_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ethusd", "BTC": "btcusd"}
     quote_name = mapping[quote_name]
@@ -42,6 +41,7 @@ def get_gemini_quote(quote_name, *args, **kwargs):
     result = get_with_timeout(url)
     if result:
         return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
+
 
 def get_gdax_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
@@ -55,6 +55,7 @@ def get_gdax_quote(quote_name, *args, **kwargs):
         ask_price, ask_amount, _ = result['asks'][0]
 
         return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
+
 
 def get_coinmarketcap_data(*args, **kwargs):
     rest_api_id = c.get('crypto', 'cmc_rest_api_id')
@@ -80,7 +81,6 @@ def get_coinmarketcap_data(*args, **kwargs):
     if not result:
         logger.warning(f"Could not get CMC data for symbols")
 
-
     results = {}
 
     if cmc_result and 'data' in cmc_result:
@@ -103,7 +103,6 @@ def get_coinmarketcap_data(*args, **kwargs):
 
     else:
         msg += "Could not calculate ratios"
-
 
     return msg
 
@@ -129,5 +128,5 @@ def get_current_quotes(quote_name='ETH'):
 
     return string_to_send
 
-#f __name__ == '__main__':
+# f __name__ == '__main__':
 #   print(get_current_quotes('BTC'))

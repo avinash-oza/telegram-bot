@@ -1,5 +1,4 @@
 import logging
-import time
 
 from telegram import InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, RegexHandler, \
@@ -28,10 +27,10 @@ def setup_handlers(dispatcher):
     # Add handler for messages we aren't handling
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
+
 # Action for operating the garage
 @check_sender_admin
 def garage_actions_handler(bot, update):
-
     garage_handler = GarageDoorHandler()
 
     return_message = """"""
@@ -69,7 +68,8 @@ def garage_actions_handler(bot, update):
         action, garage = action_and_garage.lstrip('garage ').split(' ')
         logger.warning("Got confirmation for triggering garage: {} and action: {}".format(garage, action))
 
-        update.callback_query.edit_message_text('Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
+        update.callback_query.edit_message_text(
+            'Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
         r = garage_handler.control_garage(garage, action)
 
         if not r:
@@ -90,6 +90,7 @@ def garage_actions_handler(bot, update):
 
         return
 
+
 @check_sender_admin
 def get_current_quotes_handler(bot, update):
     command_args = update.effective_message.text.lower().lstrip('quotes ')
@@ -102,6 +103,7 @@ def get_current_quotes_handler(bot, update):
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
+
 @check_sender_admin
 def temperatures_handler(bot, update):
     try:
@@ -112,6 +114,7 @@ def temperatures_handler(bot, update):
 
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=msg)
+
 
 def unknown_handler(bot, update):
     chat_id = update.effective_user.id
