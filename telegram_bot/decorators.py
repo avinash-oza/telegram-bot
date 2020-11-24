@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 
-from config_util import ConfigHelper
+from telegram_bot.config_util import ConfigHelper
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)

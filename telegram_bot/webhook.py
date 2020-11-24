@@ -2,7 +2,7 @@ import json
 import logging
 
 import telegram
-from config_util import ConfigHelper
+from telegram_bot.config_util import ConfigHelper
 from telegram.ext import Dispatcher
 
 from telegram_bot.handlers import setup_handlers
@@ -97,15 +97,16 @@ def set_webhook(event, context):
 
     return ERROR_RESPONSE
 
-# if __name__ == '__main__':
-#     user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
-#
-#     # standard sample message
-#     msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
-#                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-#                                                             'language_code': 'en'},
-#                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-#                                                    'date': 1573350422, 'text': 'quotes'}}
+if __name__ == '__main__':
+    import os
+    user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
+
+    # standard sample message
+    msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
+                                                   'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
+                                                            'language_code': 'en'},
+                                                   'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
+                                                   'date': 1573350422, 'text': 'quotes'}}
 # sample callback message
 # msg_body = {'update_id': 57665158,
 #             'message': {'message_id': 458,
@@ -120,11 +121,11 @@ def set_webhook(event, context):
 #                                'data': 'garage cancel'
 #                                }
 #             }
-#
-# d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
-#      'requestContext': {'httpMethod': 'POST',
-#                         'requestTime': '10/Nov/2019:01:51:04 +0000'},
-#      'body': json.dumps(msg_body),
-#      'isBase64Encoded': False}
-#
-# webhook(d, {})
+
+d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
+     'requestContext': {'httpMethod': 'POST',
+                        'requestTime': '10/Nov/2019:01:51:04 +0000'},
+     'body': json.dumps(msg_body),
+     'isBase64Encoded': False}
+
+webhook(d, {})

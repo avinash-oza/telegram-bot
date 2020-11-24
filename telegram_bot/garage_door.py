@@ -3,7 +3,7 @@ import logging
 
 import arrow
 import boto3
-from config_util import ConfigHelper
+from telegram_bot.config_util import ConfigHelper
 from telegram import InlineKeyboardButton
 
 c = ConfigHelper()
