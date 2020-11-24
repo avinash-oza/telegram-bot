@@ -1,12 +1,13 @@
 import json
 import logging
-import os
 
 import telegram
 from telegram.ext import Dispatcher
 
 from telegram_bot.handlers import setup_handlers
 from config_util import ConfigHelper
+
+c = ConfigHelper()
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
@@ -35,7 +36,7 @@ def configure_telegram():
     Returns a bot instance.
     """
 
-    TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_API_KEY')
+    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
     if not TELEGRAM_TOKEN:
         msg = 'The TELEGRAM_BOT_API_KEY must be set'
         logger.error(msg)
@@ -51,7 +52,6 @@ def webhook(event, context):
     Runs the Telegram webhook.
     """
 
-    config = ConfigHelper()
     bot = configure_telegram()
     dispatcher = Dispatcher(bot, None, workers=0)
 

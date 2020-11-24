@@ -5,7 +5,8 @@ import os
 import arrow
 import boto3
 from telegram import InlineKeyboardButton
-
+from config_util import ConfigHelper
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 class GarageDoorHandler:
@@ -15,7 +16,7 @@ class GarageDoorHandler:
 
     @property
     def _garage_request_arn(self):
-        req_arn = os.environ.get('TELEGRAM_GARAGE_REQUEST_ARN')
+        req_arn = c.get('garage', 'request_arn')
         if req_arn is None:
             logger.error("TELEGRAM_GARAGE_REQUEST_ARN is not set, no garage functionality available")
         return req_arn
