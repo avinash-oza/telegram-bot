@@ -45,4 +45,3 @@ class ConfigHelper:
 if __name__ == '__main__':
     c = ConfigHelper()
     print(c.config)
-    print(c.get('telegram', 'bot_admins'))
