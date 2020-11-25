@@ -1,12 +1,14 @@
 import json
 import logging
-import os
 
 import arrow
 import boto3
+from telegram_bot.config_util import ConfigHelper
 from telegram import InlineKeyboardButton
 
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
+
 
 class GarageDoorHandler:
     def __init__(self):
@@ -15,7 +17,7 @@ class GarageDoorHandler:
 
     @property
     def _garage_request_arn(self):
-        req_arn = os.environ.get('TELEGRAM_GARAGE_REQUEST_ARN')
+        req_arn = c.get('garage', 'request_arn')
         if req_arn is None:
             logger.error("TELEGRAM_GARAGE_REQUEST_ARN is not set, no garage functionality available")
         return req_arn
@@ -35,7 +37,7 @@ class GarageDoorHandler:
 
     def _send_request_and_parse_sqs_response(self, message):
         if self._garage_request_arn is None:
-            return [] # cannot do anything at this point
+            return []  # cannot do anything at this point
 
         response = self.sns.publish(TargetArn=self._garage_request_arn,
                                     Message=json.dumps({'default': json.dumps(message)}),
@@ -99,7 +101,9 @@ class GarageDoorHandler:
                 action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
                 callback_data = ' '.join(['garage', action, str(garage_name)])
                 key_text = '{} the {} Garage'.format(action.capitalize(), garage_name)
-                options.append([InlineKeyboardButton(key_text, callback_data=callback_data)])  # Store the key for the keyboard
-        options.append([InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
+                options.append(
+                    [InlineKeyboardButton(key_text, callback_data=callback_data)])  # Store the key for the keyboard
+        options.append(
+            [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
 
         return options

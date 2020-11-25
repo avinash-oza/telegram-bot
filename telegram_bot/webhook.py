@@ -1,11 +1,13 @@
 import json
 import logging
-import os
 
 import telegram
+from telegram_bot.config_util import ConfigHelper
 from telegram.ext import Dispatcher
 
 from telegram_bot.handlers import setup_handlers
+
+c = ConfigHelper()
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
@@ -34,7 +36,7 @@ def configure_telegram():
     Returns a bot instance.
     """
 
-    TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_API_KEY')
+    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
     if not TELEGRAM_TOKEN:
         msg = 'The TELEGRAM_BOT_API_KEY must be set'
         logger.error(msg)
@@ -89,23 +91,22 @@ def set_webhook(event, context):
     logger.info(f'Setting webhook url={url}')
     webhook = bot.set_webhook(url)
 
-
     if webhook:
         logger.info(f'Successfully set webhook')
         return OK_RESPONSE
 
     return ERROR_RESPONSE
 
+if __name__ == '__main__':
+    import os
+    user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
 
-# if __name__ == '__main__':
-#     user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
-#
-#     # standard sample message
-#     msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
-#                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-#                                                             'language_code': 'en'},
-#                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-#                                                    'date': 1573350422, 'text': 'quotes'}}
+    # standard sample message
+    msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
+                                                   'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
+                                                            'language_code': 'en'},
+                                                   'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
+                                                   'date': 1573350422, 'text': 'quotes'}}
     # sample callback message
     # msg_body = {'update_id': 57665158,
     #             'message': {'message_id': 458,
@@ -120,11 +121,11 @@ def set_webhook(event, context):
     #                                'data': 'garage cancel'
     #                                }
     #             }
-    #
-    # d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
-    #      'requestContext': {'httpMethod': 'POST',
-    #                         'requestTime': '10/Nov/2019:01:51:04 +0000'},
-    #      'body': json.dumps(msg_body),
-    #      'isBase64Encoded': False}
-    #
-    # webhook(d, {})
+
+    d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
+         'requestContext': {'httpMethod': 'POST',
+                            'requestTime': '10/Nov/2019:01:51:04 +0000'},
+         'body': json.dumps(msg_body),
+         'isBase64Encoded': False}
+
+    webhook(d, {})

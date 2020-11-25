@@ -1,9 +1,10 @@
-import os
 import datetime
 import logging
 
 import requests
+from telegram_bot.config_util import ConfigHelper
 
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 GEMINI_KEY = 'GEMINI'
@@ -30,6 +31,7 @@ def get_with_timeout(url, timeout=5, headers=None, params=None):
     else:
         return result
 
+
 def get_gemini_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ethusd", "BTC": "btcusd"}
     quote_name = mapping[quote_name]
@@ -39,6 +41,7 @@ def get_gemini_quote(quote_name, *args, **kwargs):
     result = get_with_timeout(url)
     if result:
         return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
+
 
 def get_gdax_quote(quote_name, *args, **kwargs):
     mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
@@ -53,11 +56,9 @@ def get_gdax_quote(quote_name, *args, **kwargs):
 
         return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
 
+
 def get_coinmarketcap_data(*args, **kwargs):
-    rest_api_id = os.environ.get('TELEGRAM_CMC_REST_API_ID')
-    if rest_api_id is None:
-        logger.error("No TELEGRAM_CMC_REST_API_ID set.")
-        return "Missing key for CMC"
+    rest_api_id = c.get('crypto', 'cmc_rest_api_id')
 
     msg = """"""
     cmc_headers = {'X-CMC_PRO_API_KEY': rest_api_id}
@@ -79,7 +80,6 @@ def get_coinmarketcap_data(*args, **kwargs):
     cmc_result = get_with_timeout(url, headers=cmc_headers, params=params)
     if not result:
         logger.warning(f"Could not get CMC data for symbols")
-
 
     results = {}
 
@@ -103,7 +103,6 @@ def get_coinmarketcap_data(*args, **kwargs):
 
     else:
         msg += "Could not calculate ratios"
-
 
     return msg
 
@@ -129,5 +128,5 @@ def get_current_quotes(quote_name='ETH'):
 
     return string_to_send
 
-# if __name__ == '__main__':
-#     print(get_current_quotes('BTC'))
+# f __name__ == '__main__':
+#   print(get_current_quotes('BTC'))
