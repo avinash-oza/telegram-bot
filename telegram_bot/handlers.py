@@ -4,7 +4,7 @@ from telegram import InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, RegexHandler, \
     CallbackQueryHandler
 
-from telegram_bot.temperature_data import get_temperatures
+from telegram_bot.temperature_data import get_temperatures, get_temperature_chart
 from .decorators import check_sender_admin
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
@@ -21,6 +21,7 @@ def setup_handlers(dispatcher):
     # END garage door handlers
 
     dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
+    dispatcher.add_handler(RegexHandler('^([Cc]harts)', charts_handler))
     for s in ['^([Tt]emp)', '^([Tt]emps)']:
         dispatcher.add_handler(RegexHandler(s, temperatures_handler))
 
@@ -114,6 +115,24 @@ def temperatures_handler(bot, update):
 
     chat_id = update.effective_user.id
     bot.sendMessage(chat_id=chat_id, text=msg)
+
+
+@check_sender_admin
+def charts_handler(bot, update):
+    chart_type_mapping = {'temps': get_temperature_chart}
+    command_args = update.effective_message.text.lower().lstrip('charts ')
+    chart_name = "temps" if not command_args else command_args
+
+    chat_id = update.effective_user.id
+
+    try:
+        chart_url = chart_type_mapping[chart_name]()
+    except Exception as e:
+        msg = f"Error occurred getting {chart_name} chart"
+        logger.exception(msg)
+        bot.sendMessage(chat_id=chat_id, text=msg)
+    else:
+        bot.sendPhoto(chat_id=chat_id, photo=chart_url)
 
 
 def unknown_handler(bot, update):
