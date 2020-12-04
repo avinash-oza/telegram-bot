@@ -1,5 +1,5 @@
 import logging
-
+import boto3
 import arrow
 import requests
 from telegram_bot.config_util import ConfigHelper
@@ -38,3 +38,20 @@ def get_temperatures(locations='ALL'):
             else:
                 resp_text += f"{loc}: Could not get value\n"
     return resp_text
+
+
+def get_temperature_chart():
+    # return the latest temperature chart url
+    params = c.config['temperature']['chart']
+    bucket = params['bucket_name']
+    key = params['key']
+    s3 = boto3.client('s3')
+
+    params_kwargs = {'Bucket': bucket,
+                     'Key': key,
+                     }
+
+    image_url = s3.generate_presigned_url('get_object',
+                                          Params=params_kwargs,
+                                          ExpiresIn=60)
+    return image_url
