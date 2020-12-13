@@ -5,7 +5,7 @@ import arrow
 import boto3
 from telegram_bot.config_util import ConfigHelper
 from telegram import InlineKeyboardButton
-
+import requests
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ class GarageDoorHandler:
     def __init__(self):
         self.sqs = boto3.client('sqs')
         self.sns = boto3.client('sns')
+        self._garage_config = c.config['garage']
 
     @property
     def _garage_request_arn(self):
@@ -26,14 +27,27 @@ class GarageDoorHandler:
     def _garage_response_queue_url(self):
         return self.sqs.get_queue_url(QueueName='garage-responses')['QueueUrl']
 
-    def get_garage_position(self, garage_name='ALL'):
+    def get_garage_position(self):
         # Returns whether the garage is open or closed
-        message = {'type': 'STATUS', 'garage_name': garage_name}
-        return self._send_request_and_parse_sqs_response(message)
+        url = self._garage_config[f'status_endpoint']
+        session = self._get_session()
+        resp = session.get(url)
+        resp.raise_for_status()
+
+        return resp.json()['status']
 
     def control_garage(self, garage_name, action):
         message = {'type': 'CONTROL', 'garage_name': garage_name, 'action': action}
         return self._send_request_and_parse_sqs_response(message)
+
+    def _get_session(self):
+        username = self._garage_config['username']
+        password = self._garage_config['password']
+        session = requests.Session()
+        session.auth = (username, password)
+
+        return session
+
 
     def _send_request_and_parse_sqs_response(self, message):
         if self._garage_request_arn is None:
@@ -107,3 +121,7 @@ class GarageDoorHandler:
             [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
 
         return options
+
+if __name__ =="__main__":
+    g = GarageDoorHandler()
+    print(g.get_garage_position())
