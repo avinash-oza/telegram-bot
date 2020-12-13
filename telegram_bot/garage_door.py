@@ -1,31 +1,18 @@
-import json
 import logging
 
 import arrow
-import boto3
-from telegram_bot.config_util import ConfigHelper
-from telegram import InlineKeyboardButton
 import requests
+from telegram import InlineKeyboardButton
+
+from telegram_bot.config_util import ConfigHelper
+
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
 class GarageDoorHandler:
     def __init__(self):
-        self.sqs = boto3.client('sqs')
-        self.sns = boto3.client('sns')
         self._garage_config = c.config['garage']
-
-    @property
-    def _garage_request_arn(self):
-        req_arn = c.get('garage', 'request_arn')
-        if req_arn is None:
-            logger.error("TELEGRAM_GARAGE_REQUEST_ARN is not set, no garage functionality available")
-        return req_arn
-
-    @property
-    def _garage_response_queue_url(self):
-        return self.sqs.get_queue_url(QueueName='garage-responses')['QueueUrl']
 
     def get_garage_position(self):
         # Returns whether the garage is open or closed
@@ -37,8 +24,13 @@ class GarageDoorHandler:
         return resp.json()['status']
 
     def control_garage(self, garage_name, action):
-        message = {'type': 'CONTROL', 'garage_name': garage_name, 'action': action}
-        return self._send_request_and_parse_sqs_response(message)
+        message = {'action': action, 'type': 'CONTROL'}
+        url = self._garage_config[f'control_endpoint'] + f'/{garage_name.upper()}'
+        session = self._get_session()
+        resp = session.post(url, json=message)
+        resp.raise_for_status()
+
+        return resp.json()['status']
 
     def _get_session(self):
         username = self._garage_config['username']
@@ -47,38 +39,6 @@ class GarageDoorHandler:
         session.auth = (username, password)
 
         return session
-
-
-    def _send_request_and_parse_sqs_response(self, message):
-        if self._garage_request_arn is None:
-            return []  # cannot do anything at this point
-
-        response = self.sns.publish(TargetArn=self._garage_request_arn,
-                                    Message=json.dumps({'default': json.dumps(message)}),
-                                    Subject='Garage Request',
-                                    MessageStructure='json')
-        logger.info("Response for request was {}".format(response))
-        # To make sure the response goes with the request
-        expected_return_id = response['MessageId'][:4]
-        logger.info("Sent request for garage status: {}. Waiting for response".format(response))
-        logger.info("Expecting return message_id: {}".format(expected_return_id))
-        responses = self.sqs.receive_message(QueueUrl=self._garage_response_queue_url, MaxNumberOfMessages=10,
-                                             WaitTimeSeconds=3)
-        if 'Messages' not in responses:
-            logger.error("Did not receive a response about garage status")
-            return []
-        for response in responses['Messages']:
-            garage_statuses = json.loads(response['Body'])
-            # check if this was the request we sent
-            if garage_statuses['id'] != expected_return_id:
-                continue
-
-            logger.info("Received response for the garage as {}".format(garage_statuses))
-            # delete message from the queue
-            self.sqs.delete_message(QueueUrl=self._garage_response_queue_url, ReceiptHandle=response['ReceiptHandle'])
-            return garage_statuses['status']
-        logger.error("Did not get any expected responses")
-        return []
 
     def status_to_string(self, garage_statuses):
         """
@@ -121,7 +81,3 @@ class GarageDoorHandler:
             [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
 
         return options
-
-if __name__ =="__main__":
-    g = GarageDoorHandler()
-    print(g.get_garage_position())
