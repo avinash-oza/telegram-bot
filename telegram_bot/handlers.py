@@ -2,12 +2,11 @@ import logging
 import re
 
 from telegram import InlineKeyboardMarkup, Update
-from telegram.ext import MessageHandler, Filters, RegexHandler, \
-    CallbackQueryHandler, CallbackContext
+from telegram.ext import MessageHandler, Filters, CallbackContext, PrefixHandler
 
 from telegram_bot.temperature_data import get_temperatures, get_temperature_chart
 from .decorators import check_allowed_user
-from .garage_door import GarageDoorHandler
+from .garage_door import GarageDoorHandler, GARAGE_CALLBACK_PATTERN
 from .market_quotes import get_current_quotes
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,8 @@ def setup_handlers(dispatcher):
             garage_actions_handler
         )
     )
-    dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
+
+    dispatcher.add_handler(PrefixHandler([''], [GARAGE_CALLBACK_PATTERN], garage_actions_handler))
     # END garage door handlers
 
     dispatcher.add_handler(
@@ -82,13 +82,13 @@ def garage_actions_handler(update: Update, context: CallbackContext):
     if update.callback_query is not None:
         update.callback_query.answer()
         action_and_garage = update.callback_query.data
-        if action_and_garage == 'garage cancel':
+        if action_and_garage == f'{GARAGE_CALLBACK_PATTERN} cancel':
             logger.info("Cancelled request to open garage")
             update.callback_query.edit_message_text('Not doing anything')
             return
 
         # process a confirm action
-        action, garage = action_and_garage.lstrip('garage ').split(' ')
+        action, garage = action_and_garage.lstrip(GARAGE_CALLBACK_PATTERN).split(' ')
         logger.warning("Got confirmation for triggering garage: {} and action: {}".format(garage, action))
 
         update.callback_query.edit_message_text(

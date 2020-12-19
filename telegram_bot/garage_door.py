@@ -9,6 +9,8 @@ from telegram_bot.config_util import ConfigHelper
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
+GARAGE_CALLBACK_PATTERN = '!garage'
+
 
 class GarageDoorHandler:
     def __init__(self):
@@ -73,11 +75,12 @@ class GarageDoorHandler:
             # Determine whether this can be opened or closed
             if not one_garage_dict['error']:
                 action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
-                callback_data = ' '.join(['garage', action, str(garage_name)])
+                callback_data = ' '.join([GARAGE_CALLBACK_PATTERN, action, str(garage_name)])
                 key_text = '{} the {} Garage'.format(action.capitalize(), garage_name)
                 options.append(
                     [InlineKeyboardButton(key_text, callback_data=callback_data)])  # Store the key for the keyboard
         options.append(
-            [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
+            [InlineKeyboardButton("Nevermind",
+                                  callback_data=f'{GARAGE_CALLBACK_PATTERN} cancel')])  # Store the key for the keyboard
 
         return options
