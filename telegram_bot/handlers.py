@@ -6,7 +6,7 @@ from telegram.ext import MessageHandler, Filters, RegexHandler, \
     CallbackQueryHandler, CallbackContext
 
 from telegram_bot.temperature_data import get_temperatures, get_temperature_chart
-from .decorators import check_sender_admin
+from .decorators import check_allowed_user
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
 
@@ -53,7 +53,7 @@ def setup_handlers(dispatcher):
 
 
 # Action for operating the garage
-@check_sender_admin
+@check_allowed_user
 def garage_actions_handler(update: Update, context: CallbackContext):
     garage_handler = GarageDoorHandler()
 
@@ -114,7 +114,7 @@ def garage_actions_handler(update: Update, context: CallbackContext):
         return
 
 
-@check_sender_admin
+@check_allowed_user
 def get_current_quotes_handler(update: Update, context: CallbackContext):
     command_args = update.effective_message.text.lower().lstrip('quotes ')
     quote_name = "ETH" if not command_args else command_args
@@ -127,7 +127,7 @@ def get_current_quotes_handler(update: Update, context: CallbackContext):
     context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
 
-@check_sender_admin
+@check_allowed_user
 def temperatures_handler(update: Update, context: CallbackContext):
     try:
         msg = get_temperatures()
@@ -139,7 +139,7 @@ def temperatures_handler(update: Update, context: CallbackContext):
     context.bot.sendMessage(chat_id=chat_id, text=msg)
 
 
-@check_sender_admin
+@check_allowed_user
 def charts_handler(update: Update, context: CallbackContext):
     chart_type_mapping = {'temps': get_temperature_chart}
     command_args = update.effective_message.text.lower().lstrip('charts ')
