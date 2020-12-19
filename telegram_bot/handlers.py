@@ -1,4 +1,5 @@
 import logging
+import re
 
 from telegram import InlineKeyboardMarkup, Update
 from telegram.ext import MessageHandler, Filters, RegexHandler, \
@@ -14,17 +15,39 @@ logger = logging.getLogger(__name__)
 
 def setup_handlers(dispatcher):
     # Handler for opening the garage
-    for s in ['garage', '^(Garage|garage)', '^(Ga)', '^(ga)']:
-        dispatcher.add_handler(RegexHandler(s, garage_actions_handler))
-
+    dispatcher.add_handler(
+        MessageHandler(
+            Filters.regex(re.compile('^(Garage)', re.IGNORECASE)) |
+            Filters.regex(re.compile('^(Ga)', re.IGNORECASE),
+                          ),
+            garage_actions_handler
+        )
+    )
     dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
     # END garage door handlers
 
-    dispatcher.add_handler(RegexHandler('^([Qq]uotes)', get_current_quotes_handler))
-    dispatcher.add_handler(RegexHandler('^([Cc]harts)', charts_handler))
-    for s in ['^([Tt]emp)', '^([Tt]emps)']:
-        dispatcher.add_handler(RegexHandler(s, temperatures_handler))
+    dispatcher.add_handler(
+        MessageHandler(
+            Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
+            get_current_quotes_handler
+        )
+    )
 
+    dispatcher.add_handler(
+        MessageHandler(
+            Filters.regex(re.compile('^(charts)', re.IGNORECASE)),
+            charts_handler
+        )
+    )
+
+    dispatcher.add_handler(
+        MessageHandler(
+            Filters.regex(re.compile('^(temps)', re.IGNORECASE)),
+            temperatures_handler
+        )
+    )
+
+    #
     # Add handler for messages we aren't handling
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
@@ -134,8 +157,8 @@ def charts_handler(update: Update, context: CallbackContext):
         context.bot.sendPhoto(chat_id=chat_id, photo=chart_url)
 
 
-def unknown_handler(bot, update):
+def unknown_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_user.id
     logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
-    bot.sendMessage(chat_id=chat_id, text="Did not understand message")
+    context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")
