@@ -35,7 +35,7 @@ def webhook(event, context):
     """
 
     bot = _configure_telegram()
-    dispatcher = Dispatcher(bot, None, workers=0)
+    dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
 
     setup_handlers(dispatcher)
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
                                                             'language_code': 'en'},
                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-                                                   'date': 1573350422, 'text': 'quotes'}}
+                                                   'date': 1573350422, 'text': 'charts'}}
     # sample callback message
     # msg_body = {'update_id': 57665158,
     #             'message': {'message_id': 458,
