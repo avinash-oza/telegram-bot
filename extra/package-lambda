@@ -6,7 +6,7 @@ pip install --target ./package -r requirements.txt
 pip install --target ./package .
 
 # add files to package
-cd package
+cd package || exit
 zip -r9 ../telegram-bot.zip .
 cd ../
 # cleanup intermediate

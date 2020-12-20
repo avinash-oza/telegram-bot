@@ -29,31 +29,13 @@ ERROR_RESPONSE = {
 }
 
 
-def configure_telegram():
-    """
-    Configures the bot with a Telegram Token.
-
-    Returns a bot instance.
-    """
-
-    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
-    if not TELEGRAM_TOKEN:
-        msg = 'The TELEGRAM_BOT_API_KEY must be set'
-        logger.error(msg)
-        raise RuntimeError(msg)
-
-    bot = telegram.Bot(TELEGRAM_TOKEN)
-
-    return bot
-
-
 def webhook(event, context):
     """
     Runs the Telegram webhook.
     """
 
-    bot = configure_telegram()
-    dispatcher = Dispatcher(bot, None, workers=0)
+    bot = _configure_telegram()
+    dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
 
     setup_handlers(dispatcher)
 
@@ -72,12 +54,30 @@ def webhook(event, context):
 
     elif event.get('httpMethod') == 'GET' and event.get('path') == '/setWebHook':
         logger.info("Setting webhook")
-        set_webhook(event, context)
+        _set_webhook(event, context)
 
     return OK_RESPONSE
 
 
-def set_webhook(event, context):
+def _configure_telegram():
+    """
+    Configures the bot with a Telegram Token.
+
+    Returns a bot instance.
+    """
+
+    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
+    if not TELEGRAM_TOKEN:
+        msg = 'The TELEGRAM_BOT_API_KEY must be set'
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    bot = telegram.Bot(TELEGRAM_TOKEN)
+
+    return bot
+
+
+def _set_webhook(event, context):
     """
     Sets the Telegram bot webhook.
     """
@@ -85,7 +85,7 @@ def set_webhook(event, context):
     logger.info('Got request to set webhook')
     logger.info(f'EVENT: {event}')
 
-    bot = configure_telegram()
+    bot = _configure_telegram()
     url = f"https://{event.get('headers').get('Host')}/"
 
     logger.info(f'Setting webhook url={url}')
@@ -97,8 +97,10 @@ def set_webhook(event, context):
 
     return ERROR_RESPONSE
 
+
 if __name__ == '__main__':
     import os
+
     user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
 
     # standard sample message
@@ -106,7 +108,7 @@ if __name__ == '__main__':
                                                    'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
                                                             'language_code': 'en'},
                                                    'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-                                                   'date': 1573350422, 'text': 'quotes'}}
+                                                   'date': 1573350422, 'text': 'charts'}}
     # sample callback message
     # msg_body = {'update_id': 57665158,
     #             'message': {'message_id': 458,
