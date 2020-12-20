@@ -35,7 +35,7 @@ def webhook(event, context):
     """
 
     bot = _configure_telegram()
-    dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
+    dispatcher = Dispatcher(bot, None, workers=0)
 
     setup_handlers(dispatcher)
 
