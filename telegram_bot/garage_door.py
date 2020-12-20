@@ -18,7 +18,7 @@ class GarageDoorHandler:
         # Returns whether the garage is open or closed
         url = self._garage_config[f'status_endpoint']
         session = self._get_session()
-        resp = session.get(url)
+        resp = session.get(url, timeout=self._garage_config['timeout'])
         resp.raise_for_status()
 
         return resp.json()['status']
@@ -27,7 +27,7 @@ class GarageDoorHandler:
         message = {'action': action, 'type': 'CONTROL'}
         url = self._garage_config[f'control_endpoint'] + f'/{garage_name.upper()}'
         session = self._get_session()
-        resp = session.post(url, json=message)
+        resp = session.post(url, json=message, timeout=self._garage_config['timeout'])
         resp.raise_for_status()
 
         return resp.json()['status']
