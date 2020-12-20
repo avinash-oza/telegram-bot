@@ -1,5 +1,7 @@
 # Config
 telegram-bot.zip
+dev.json
+prod.json
 config.json
 .idea/
 package/
