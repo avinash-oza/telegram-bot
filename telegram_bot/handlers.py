@@ -17,9 +17,10 @@ def setup_handlers(dispatcher):
     # Handler for opening the garage
     dispatcher.add_handler(
         MessageHandler(
-            Filters.regex(re.compile('^(Garage)', re.IGNORECASE)) |
-            Filters.regex(re.compile('^(Ga)', re.IGNORECASE),
-                          ),
+            Filters.private & (
+                    Filters.regex(re.compile('^(Garage)', re.IGNORECASE)) |
+                    Filters.regex(re.compile('^(Ga)', re.IGNORECASE),
+                                  )),
             garage_actions_handler
         )
     )
@@ -28,6 +29,7 @@ def setup_handlers(dispatcher):
 
     dispatcher.add_handler(
         MessageHandler(
+            Filters.private &
             Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
             get_current_quotes_handler
         )
@@ -35,6 +37,7 @@ def setup_handlers(dispatcher):
 
     dispatcher.add_handler(
         MessageHandler(
+            Filters.private &
             Filters.regex(re.compile('^(charts)', re.IGNORECASE)),
             charts_handler
         )
@@ -42,6 +45,7 @@ def setup_handlers(dispatcher):
 
     dispatcher.add_handler(
         MessageHandler(
+            Filters.private &
             Filters.regex(re.compile('^(temps)', re.IGNORECASE)),
             temperatures_handler
         )
@@ -49,7 +53,7 @@ def setup_handlers(dispatcher):
 
     #
     # Add handler for messages we aren't handling
-    dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
+    dispatcher.add_handler(MessageHandler(Filters.private & (Filters.command | Filters.text), unknown_handler))
 
 
 # Action for operating the garage
