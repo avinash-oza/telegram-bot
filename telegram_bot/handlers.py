@@ -99,7 +99,7 @@ def garage_actions_handler(update: Update, context: CallbackContext):
         update.callback_query.edit_message_text(
             'Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
 
-        bot_admin = = c.config['telegram']['bot_admin']
+        bot_admin = c.config['telegram']['bot_admin']
         if update.effective_user.id != bot_admin:
             context.bot.sendMessage(chat_id=bot_admin,
                                     text=f"{update.effective_user.first_name} has action={action} the garage")
