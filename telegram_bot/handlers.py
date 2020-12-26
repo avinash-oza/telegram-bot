@@ -2,14 +2,15 @@ import logging
 import re
 
 from telegram import InlineKeyboardMarkup, Update
-from telegram.ext import MessageHandler, Filters, RegexHandler, \
-    CallbackQueryHandler, CallbackContext
+from telegram.ext import MessageHandler, Filters, CallbackQueryHandler, CallbackContext
 
+from telegram_bot.config_util import ConfigHelper
 from telegram_bot.temperature_data import get_temperatures, get_temperature_chart
 from .decorators import check_allowed_user
 from .garage_door import GarageDoorHandler
 from .market_quotes import get_current_quotes
 
+c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +98,10 @@ def garage_actions_handler(update: Update, context: CallbackContext):
 
         update.callback_query.edit_message_text(
             'Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
+        if update.effective_user.id != c.config['telegram']['bot_admin']:
+            context.bot.sendMessage(chat_id=update.effective_user.id,
+                                    text=f"{update.effective_user.first_name} has action={action} the garage")
+
         r = garage_handler.control_garage(garage, action)
 
         if not r:
