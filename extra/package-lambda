@@ -1,8 +1,7 @@
 #! /bin/bash
 cd ../
 rm telegram-bot.zip
-# add packages
-pip install --target ./package -r requirements.txt
+# add package
 pip install --target ./package .
 
 # add files to package
@@ -10,4 +9,4 @@ cd package || exit
 zip -r9 ../telegram-bot.zip .
 cd ../
 # cleanup intermediate
-rm -Rvf package
+rm -Rf package
