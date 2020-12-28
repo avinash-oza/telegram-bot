@@ -2,6 +2,7 @@ import datetime
 import logging
 import re
 
+import arrow
 import requests
 from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
@@ -38,30 +39,43 @@ class CryptoQuotes(HandlerBase):
         else:
             return result
 
-    def _get_gemini_quote(self, quote_name, *args, **kwargs):
-        mapping = {"ETH": "ethusd", "BTC": "btcusd"}
-        quote_name = mapping[quote_name]
+    # def _get_gemini_quote(self, quote_name, *args, **kwargs):
+    #     mapping = {"ETH": "ethusd", "BTC": "btcusd"}
+    #     quote_name = mapping[quote_name]
+    #
+    #     # Get quotes from API
+    #     url = f'https://api.gemini.com/v1/pubticker/{quote_name}'
+    #     result = self._get_with_timeout(url)
+    #     if result:
+    #         return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
+    #
+    # def _get_gdax_quote(self, quote_name, *args, **kwargs):
+    #     mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
+    #
+    #     quote_name = mapping[quote_name]
+    #
+    #     url = f'https://api.gdax.com/products/{quote_name}/book'
+    #     result = self._get_with_timeout(url)
+    #     if result:
+    #         bid_price, bid_amount, _ = result['bids'][0]
+    #         ask_price, ask_amount, _ = result['asks'][0]
+    #
+    #         return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
 
-        # Get quotes from API
-        url = f'https://api.gemini.com/v1/pubticker/{quote_name}'
-        result = self._get_with_timeout(url)
-        if result:
-            return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
+    def _get_cryptowatch_quotes(self):
+        resp = self._get_with_timeout('https://api.cryptowat.ch/markets/prices')
+        # END REMOVE
+        text = """"""
+        for currency, exchanges in c.config['crypto']['prices'].items():
+            ccy_text = f"""<b>{currency}<b>:\n"""
+            for exchange in exchanges:
+                exchange_desc = exchange.split(':')[1]  # keep only the exchange name
+                ccy_text += f"\t{exchange_desc}:{resp['result'][exchange]}\n"
+            text += ccy_text
+        text += f"CW API Credits: {resp['allowance']['remaining']}\n---\n"
+        return text
 
-    def _get_gdax_quote(self, quote_name, *args, **kwargs):
-        mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
-
-        quote_name = mapping[quote_name]
-
-        url = f'https://api.gdax.com/products/{quote_name}/book'
-        result = self._get_with_timeout(url)
-        if result:
-            bid_price, bid_amount, _ = result['bids'][0]
-            ask_price, ask_amount, _ = result['asks'][0]
-
-            return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
-
-    def get_coinmarketcap_data(self, *args, **kwargs):
+    def _get_cmc_data(self):
         rest_api_id = c.get('crypto', 'cmc_rest_api_id')
 
         msg = """"""
@@ -110,21 +124,20 @@ class CryptoQuotes(HandlerBase):
 
         return msg
 
-    def _get_current_quotes(self, quote_name='ETH'):
-        key_func_mapping = {(GDAX_KEY, quote_name): self._get_gdax_quote,
-                            (GEMINI_KEY, quote_name): self._get_gemini_quote,
-                            (COINMARKETCAP_KEY, quote_name): self.get_coinmarketcap_data
+    def _get_current_quotes(self):
+        key_func_mapping = {'CRYPTOWATCH': self._get_cryptowatch_quotes,
+                            'COINMARKETCAP': self._get_cmc_data
                             }
-        string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
+        t = arrow.get(tzinfo='America/New_York').strftime("%Y-%m-%d %H:%m:%S%p")
+        string_to_send = f"Time: {t}\n"
 
-        for key, call_func in key_func_mapping.items():
-            exchange, pair = key
+        for name, call_func in key_func_mapping.items():
             try:
                 # calculate the result and store to cache
-                result = call_func(quote_name=quote_name)
+                result = call_func()
             except Exception as e:
-                logger.exception("Exception for {}".format(key))
-                result = f"Failed to get for exchange {exchange}\n"
+                logger.exception(f"Exception for {name}")
+                result = f"Failed to get for: {name}\n"
             finally:
                 # construct the string
                 string_to_send += result
@@ -132,13 +145,8 @@ class CryptoQuotes(HandlerBase):
         return string_to_send
 
     def get_current_quotes_handler(self, update: Update, context: CallbackContext):
-        command_args = update.effective_message.text.lower().lstrip('quotes ')
-        quote_name = "ETH" if not command_args else command_args
-        logger.info(f"Got request for {quote_name}")
-        try:
-            quotes_response = self._get_current_quotes(quote_name)
-        except Exception as e:
-            quotes_response = "Error occured getting quotes"
+        quotes_response = self._get_current_quotes()
+
         chat_id = update.effective_user.id
         context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
@@ -148,3 +156,7 @@ class CryptoQuotes(HandlerBase):
                                          Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
                               'callback': self.get_current_quotes_handler})
         ]
+
+if __name__ =='__main__':
+    # print(CryptoQuotes()._get_gdax_quote('ETH'))
+    print(CryptoQuotes()._get_current_quotes())
