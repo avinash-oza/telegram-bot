@@ -8,7 +8,7 @@ from telegram_bot.config_util import ConfigHelper
 from telegram_bot.temperature_data import get_temperatures, get_temperature_chart
 from .decorators import check_allowed_user
 from .garage_door import GarageDoorHandler
-from .market_quotes import get_current_quotes
+from .market_quotes import CryptoQuotes
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
@@ -27,14 +27,7 @@ def setup_handlers(dispatcher):
     )
     dispatcher.add_handler(CallbackQueryHandler(garage_actions_handler, pattern='^garage'))
     # END garage door handlers
-
-    dispatcher.add_handler(
-        MessageHandler(
-            Filters.private &
-            Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
-            get_current_quotes_handler
-        )
-    )
+    CryptoQuotes().add_handlers(dispatcher)
 
     dispatcher.add_handler(
         MessageHandler(
@@ -124,18 +117,6 @@ def garage_actions_handler(update: Update, context: CallbackContext):
 
         return
 
-
-@check_allowed_user
-def get_current_quotes_handler(update: Update, context: CallbackContext):
-    command_args = update.effective_message.text.lower().lstrip('quotes ')
-    quote_name = "ETH" if not command_args else command_args
-    logger.info(f"Got request for {quote_name}")
-    try:
-        quotes_response = get_current_quotes(quote_name)
-    except Exception as e:
-        quotes_response = "Error occured getting quotes"
-    chat_id = update.effective_user.id
-    context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
 
 @check_allowed_user

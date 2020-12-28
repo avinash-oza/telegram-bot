@@ -24,3 +24,15 @@ def check_allowed_user(func):
         return func(update, context, *args, **kwargs)
 
     return wrapped
+
+def check_allowed_user_class(func):
+    @wraps(func)
+    def wrapped(self, update: Update, context: CallbackContext, *args, **kwargs):
+        user_id = str(update.effective_user.id)
+        if user_id not in ALLOWED_USERS:
+            logger.error(f"User {user_id} is not in the allowed users list")
+            context.bot.sendMessage(chat_id=user_id, text='Not authorized')
+            return
+        return func(self, update, context, *args, **kwargs)
+
+    return wrapped
