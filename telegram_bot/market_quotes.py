@@ -8,6 +8,7 @@ from telegram.ext import CallbackContext, MessageHandler, Filters
 
 from telegram_bot.config_util import ConfigHelper
 from telegram_bot.decorators import check_allowed_user
+from telegram_bot.handler_base import HandlerBase
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ COINMARKETCAP_KEY = 'COINMARKETCAP'
 TIME_KEY = 'TIME'
 
 
-class CryptoQuotes:
+class CryptoQuotes(HandlerBase):
 
     def _get_with_timeout(self, url, timeout=5, headers=None, params=None):
         """
@@ -131,7 +132,6 @@ class CryptoQuotes:
 
         return string_to_send
 
-    @check_allowed_user
     def get_current_quotes_handler(self, update: Update, context: CallbackContext):
         command_args = update.effective_message.text.lower().lstrip('quotes ')
         quote_name = "ETH" if not command_args else command_args
@@ -143,11 +143,9 @@ class CryptoQuotes:
         chat_id = update.effective_user.id
         context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
-    def add_handlers(self, dispatcher):
-        dispatcher.add_handler(
-            MessageHandler(
-                Filters.private &
-                Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
-                self.get_current_quotes_handler
-            )
-        )
+    def _get_handlers(self):
+        return [
+            (MessageHandler, {'filters': Filters.private &
+                                         Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
+                              'callback': self.get_current_quotes_handler})
+        ]
