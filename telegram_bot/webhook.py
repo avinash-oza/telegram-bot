@@ -7,9 +7,9 @@ from telegram.ext import Dispatcher
 from telegram.ext import MessageHandler, Filters, CallbackContext
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.garage_door import GarageDoorHandler
-from telegram_bot.market_quotes import CryptoQuotes
-from telegram_bot.temperature_data import Temperatures
+from telegram_bot.handlers.garage_door import GarageDoorHandler
+from telegram_bot.handlers.market_quotes import CryptoQuotes
+from telegram_bot.handlers.temperature_data import Temperatures
 
 c = ConfigHelper()
 

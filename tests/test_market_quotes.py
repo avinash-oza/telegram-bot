@@ -2,7 +2,7 @@ from unittest import TestCase, mock
 
 from requests import HTTPError
 
-from telegram_bot.market_quotes import get_coinmarketcap_data, get_current_quotes
+from telegram_bot.handlers.market_quotes import get_coinmarketcap_data, get_current_quotes
 
 
 @mock.patch('telegram_bot.market_quotes.os.environ.get', return_value='TEST_API_KEY')

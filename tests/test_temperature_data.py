@@ -1,7 +1,7 @@
 from unittest import TestCase, mock
 
 from requests import HTTPError
-from telegram_bot.temperature_data import get_temperatures
+from telegram_bot.handlers.temperature_data import get_temperatures
 
 
 @mock.patch('telegram_bot.temperature_data.os.environ.get', return_value='TEST_API_KEY')
