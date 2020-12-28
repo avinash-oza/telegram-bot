@@ -2,10 +2,14 @@ import json
 import logging
 
 import telegram
-from telegram_bot.config_util import ConfigHelper
+from telegram import Update
 from telegram.ext import Dispatcher
+from telegram.ext import MessageHandler, Filters, CallbackContext
 
-from telegram_bot.handlers import setup_handlers
+from telegram_bot.config_util import ConfigHelper
+from telegram_bot.garage_door import GarageDoorHandler
+from telegram_bot.market_quotes import CryptoQuotes
+from telegram_bot.temperature_data import Temperatures
 
 c = ConfigHelper()
 
@@ -54,7 +58,7 @@ def webhook(event, context):
 
     elif event.get('httpMethod') == 'GET' and event.get('path') == '/setWebHook':
         logger.info("Setting webhook")
-        _set_webhook(event, context)
+        _set_webhook(event, context, bot)
 
     return OK_RESPONSE
 
@@ -77,7 +81,7 @@ def _configure_telegram():
     return bot
 
 
-def _set_webhook(event, context):
+def _set_webhook(event, context, bot):
     """
     Sets the Telegram bot webhook.
     """
@@ -85,7 +89,6 @@ def _set_webhook(event, context):
     logger.info('Got request to set webhook')
     logger.info(f'EVENT: {event}')
 
-    bot = _configure_telegram()
     url = f"https://{event.get('headers').get('Host')}/"
 
     logger.info(f'Setting webhook url={url}')
@@ -98,36 +101,17 @@ def _set_webhook(event, context):
     return ERROR_RESPONSE
 
 
-if __name__ == '__main__':
-    import os
+def setup_handlers(dispatcher):
+    GarageDoorHandler().add_handlers(dispatcher)
+    CryptoQuotes().add_handlers(dispatcher)
+    Temperatures().add_handlers(dispatcher)
 
-    user_id = os.environ.get('TELEGRAM_USER', 1234)  # sample id for testing
+    # Add handler for messages we aren't handling
+    dispatcher.add_handler(MessageHandler(Filters.private & (Filters.command | Filters.text), _unknown_handler))
 
-    # standard sample message
-    msg_body = {'update_id': 57665158, 'message': {'message_id': 458,
-                                                   'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-                                                            'language_code': 'en'},
-                                                   'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-                                                   'date': 1573350422, 'text': 'charts'}}
-    # sample callback message
-    # msg_body = {'update_id': 57665158,
-    #             'message': {'message_id': 458,
-    #                         'from': {'id': user_id, 'is_bot': False, 'first_name': 'ABCD',
-    #                                  'language_code': 'en'},
-    #                         'chat': {'id': user_id, 'first_name': 'ABCD', 'type': 'private'},
-    #                         'date': 1573350422, 'text': 'Ga'},
-    #
-    #             'callback_query': {'id': user_id,
-    #                                'from_user': user_id,
-    #                                'chat_instance': '34567',
-    #                                'data': 'garage cancel'
-    #                                }
-    #             }
 
-    d = {'resource': '/', 'path': '/', 'httpMethod': 'POST',
-         'requestContext': {'httpMethod': 'POST',
-                            'requestTime': '10/Nov/2019:01:51:04 +0000'},
-         'body': json.dumps(msg_body),
-         'isBase64Encoded': False}
+def _unknown_handler(update: Update, context: CallbackContext):
+    chat_id = update.effective_user.id
+    logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
-    webhook(d, {})
+    context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")
