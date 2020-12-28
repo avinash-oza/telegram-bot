@@ -37,7 +37,7 @@ class CryptoQuotes(HandlerBase):
         resp = self._get_with_timeout('https://api.cryptowat.ch/markets/prices')
         text = """"""
         for currency, exchanges in c.config['crypto']['prices'].items():
-            ccy_text = f"""<b>{currency}</b>:\n"""
+            ccy_text = f"""**{currency}**:\n"""
             for exchange in exchanges:
                 exchange_desc = exchange.split(':')[1]  # keep only the exchange name
                 ccy_text += f"\t{exchange_desc}: {resp['result'][exchange]}\n"
@@ -59,10 +59,10 @@ class CryptoQuotes(HandlerBase):
             btc_pct_dom = round(result['data']['btc_dominance'], 2)
             eth_pct_dom = round(result['data']['eth_dominance'], 2)
 
-            msg += "<b>Total</b>:\n\tMarketCap: {0:d}B\n\tVolume(24H): {1:d}B\n".format(
+            msg += "**Total**:\n\tMarketCap: {0:d}B\n\tVolume(24H): {1:d}B\n".format(
                 int(total_market_cap / 1000000000),
                 int(volume_24h / 1000000000))
-            msg += f"<b>Dominance</b>:\n\tBTC: {btc_pct_dom}%\n\tETH: {eth_pct_dom}%\n"
+            msg += f"**Dominance**:\n\tBTC: {btc_pct_dom}%\n\tETH: {eth_pct_dom}%\n"
         else:
             msg += "Could not get Market Cap\n"
 
@@ -123,7 +123,7 @@ class CryptoQuotes(HandlerBase):
         quotes_response = self._build_response()
 
         chat_id = update.effective_user.id
-        context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
+        context.bot.sendMessage(chat_id=chat_id, text=quotes_response, parse_mode='Markdown')
 
     def _get_handlers(self):
         return [
