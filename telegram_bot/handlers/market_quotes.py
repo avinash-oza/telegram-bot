@@ -1,7 +1,7 @@
-import datetime
 import logging
 import re
 
+import arrow
 import requests
 from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
@@ -11,11 +11,6 @@ from telegram_bot.handlers.handler_base import HandlerBase
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
-
-GEMINI_KEY = 'GEMINI'
-GDAX_KEY = 'GDAX'
-COINMARKETCAP_KEY = 'COINMARKETCAP'
-TIME_KEY = 'TIME'
 
 
 class CryptoQuotes(HandlerBase):
@@ -38,30 +33,19 @@ class CryptoQuotes(HandlerBase):
         else:
             return result
 
-    def _get_gemini_quote(self, quote_name, *args, **kwargs):
-        mapping = {"ETH": "ethusd", "BTC": "btcusd"}
-        quote_name = mapping[quote_name]
+    def _get_cryptowatch_quotes(self):
+        resp = self._get_with_timeout('https://api.cryptowat.ch/markets/prices')
+        text = """"""
+        for currency, exchanges in c.config['crypto']['prices'].items():
+            ccy_text = f"""<b>{currency}</b>:\n"""
+            for exchange in exchanges:
+                exchange_desc = exchange.split(':')[1]  # keep only the exchange name
+                ccy_text += f"\t{exchange_desc}: {resp['result'][exchange]}\n"
+            text += ccy_text
+        text += f"CW API Credits: {resp['allowance']['remaining']}\n---\n"
+        return text
 
-        # Get quotes from API
-        url = f'https://api.gemini.com/v1/pubticker/{quote_name}'
-        result = self._get_with_timeout(url)
-        if result:
-            return f"{GEMINI_KEY} : Bid: {result['bid']} Ask: {result['ask']}\n"
-
-    def _get_gdax_quote(self, quote_name, *args, **kwargs):
-        mapping = {"ETH": "ETH-USD", "BTC": "BTC-USD"}
-
-        quote_name = mapping[quote_name]
-
-        url = f'https://api.gdax.com/products/{quote_name}/book'
-        result = self._get_with_timeout(url)
-        if result:
-            bid_price, bid_amount, _ = result['bids'][0]
-            ask_price, ask_amount, _ = result['asks'][0]
-
-            return f"{GDAX_KEY} : Bid: {bid_price} Ask: {ask_price}\n"
-
-    def get_coinmarketcap_data(self, *args, **kwargs):
+    def _get_cmc_data(self):
         rest_api_id = c.get('crypto', 'cmc_rest_api_id')
 
         msg = """"""
@@ -71,16 +55,21 @@ class CryptoQuotes(HandlerBase):
 
         if result:
             total_market_cap = result['data']['quote']['USD']['total_market_cap']
-            bitcoin_percent_dominance = result['data']['btc_dominance']
-            msg += "MarketCap: {0:d}B\n".format(int(total_market_cap / 1000000000))
-            msg += f"BTC Dom: {bitcoin_percent_dominance}\n"
+            volume_24h = result['data']['quote']['USD']['total_volume_24h']
+            btc_pct_dom = round(result['data']['btc_dominance'], 2)
+            eth_pct_dom = round(result['data']['eth_dominance'], 2)
+
+            msg += "<b>Total</b>:\n\tMarketCap: {0:d}B\n\tVolume(24H): {1:d}B\n".format(
+                int(total_market_cap / 1000000000),
+                int(volume_24h / 1000000000))
+            msg += f"<b>Dominance</b>:\n\tBTC: {btc_pct_dom}%\n\tETH: {eth_pct_dom}%\n"
         else:
             msg += "Could not get Market Cap\n"
 
         # Get volume of ETH and BTC
         url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-        symbol_id_to_slug = {'1': 'bitcoin', '1027': 'ethereum'}
-        params = {'id': ','.join(symbol_id_to_slug.keys())}
+        id_to_slug = c.config['crypto']['cmc']['id_slug_mapping']
+        params = {'id': ','.join(id_to_slug.keys())}
         cmc_result = self._get_with_timeout(url, headers=cmc_headers, params=params)
         if not result:
             logger.warning(f"Could not get CMC data for symbols")
@@ -90,7 +79,7 @@ class CryptoQuotes(HandlerBase):
         if cmc_result and 'data' in cmc_result:
             for symbol_id, symbol_dict in cmc_result['data'].items():
                 try:
-                    slug = symbol_id_to_slug[symbol_id]
+                    slug = id_to_slug[symbol_id]
                 except KeyError:
                     logger.warning(f"Ignoring response id {symbol_id}")
                     continue
@@ -110,35 +99,29 @@ class CryptoQuotes(HandlerBase):
 
         return msg
 
-    def _get_current_quotes(self, quote_name='ETH'):
-        key_func_mapping = {(GDAX_KEY, quote_name): self._get_gdax_quote,
-                            (GEMINI_KEY, quote_name): self._get_gemini_quote,
-                            (COINMARKETCAP_KEY, quote_name): self.get_coinmarketcap_data
+    def _build_response(self):
+        key_func_mapping = {'CRYPTOWATCH': self._get_cryptowatch_quotes,
+                            'COINMARKETCAP': self._get_cmc_data
                             }
-        string_to_send = "Time: {0}\n".format(datetime.datetime.today().strftime("%Y-%m-%d %H:%m:%S"))
+        t = arrow.get(tzinfo='America/New_York').strftime("%Y-%m-%d %H:%m:%S%p")
+        string_to_send = f"Time: {t}\n"
 
-        for key, call_func in key_func_mapping.items():
-            exchange, pair = key
+        for name, call_func in key_func_mapping.items():
             try:
                 # calculate the result and store to cache
-                result = call_func(quote_name=quote_name)
+                result = call_func()
             except Exception as e:
-                logger.exception("Exception for {}".format(key))
-                result = f"Failed to get for exchange {exchange}\n"
+                logger.exception(f"Exception for {name}")
+                result = f"Failed to get for: {name}\n"
             finally:
                 # construct the string
                 string_to_send += result
 
         return string_to_send
 
-    def get_current_quotes_handler(self, update: Update, context: CallbackContext):
-        command_args = update.effective_message.text.lower().lstrip('quotes ')
-        quote_name = "ETH" if not command_args else command_args
-        logger.info(f"Got request for {quote_name}")
-        try:
-            quotes_response = self._get_current_quotes(quote_name)
-        except Exception as e:
-            quotes_response = "Error occured getting quotes"
+    def _handle_message(self, update: Update, context: CallbackContext):
+        quotes_response = self._build_response()
+
         chat_id = update.effective_user.id
         context.bot.sendMessage(chat_id=chat_id, text=quotes_response)
 
@@ -146,5 +129,5 @@ class CryptoQuotes(HandlerBase):
         return [
             (MessageHandler, {'filters': Filters.private &
                                          Filters.regex(re.compile('^(quotes)', re.IGNORECASE)),
-                              'callback': self.get_current_quotes_handler})
+                              'callback': self._handle_message})
         ]
