@@ -8,13 +8,13 @@ from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.decorators import check_allowed_user
+from telegram_bot.handler_base import HandlerBase
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
-class Temperatures:
+class Temperatures(HandlerBase):
 
     def get_temperatures(self, locations='ALL'):
         if locations == 'ALL':
@@ -63,7 +63,6 @@ class Temperatures:
                                               ExpiresIn=60)
         return image_url
 
-    @check_allowed_user
     def temperatures_handler(self, update: Update, context: CallbackContext):
         try:
             msg = self.get_temperatures()
@@ -74,7 +73,6 @@ class Temperatures:
         chat_id = update.effective_user.id
         context.bot.sendMessage(chat_id=chat_id, text=msg)
 
-    @check_allowed_user
     def charts_handler(self, update: Update, context: CallbackContext):
         chart_type_mapping = {'temps': self.get_temperature_chart}
         command_args = update.effective_message.text.lower().lstrip('charts ')
@@ -91,19 +89,16 @@ class Temperatures:
         else:
             context.bot.sendPhoto(chat_id=chat_id, photo=chart_url)
 
-    def add_handlers(self, dispatcher):
-        dispatcher.add_handler(
-            MessageHandler(
-                Filters.private &
-                Filters.regex(re.compile('^(charts)', re.IGNORECASE)),
-                self.charts_handler
+    def _get_handlers(self):
+        return [
+            (
+                MessageHandler, {'filters': Filters.private &
+                                            Filters.regex(re.compile('^(charts)', re.IGNORECASE)),
+                                 'callback': self.charts_handler}
+            ),
+            (
+                MessageHandler, {'filters': Filters.private &
+                                            Filters.regex(re.compile('^(temps)', re.IGNORECASE)),
+                                 'callback': self.temperatures_handler}
             )
-        )
-
-        dispatcher.add_handler(
-            MessageHandler(
-                Filters.private &
-                Filters.regex(re.compile('^(temps)', re.IGNORECASE)),
-                self.temperatures_handler
-            )
-        )
+        ]
