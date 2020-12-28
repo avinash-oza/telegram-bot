@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.decorators import check_allowed_user_class
+from telegram_bot.decorators import check_allowed_user
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class CryptoQuotes:
 
         return string_to_send
 
-    @check_allowed_user_class
+    @check_allowed_user
     def get_current_quotes_handler(self, update: Update, context: CallbackContext):
         command_args = update.effective_message.text.lower().lstrip('quotes ')
         quote_name = "ETH" if not command_args else command_args

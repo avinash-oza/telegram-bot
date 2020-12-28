@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.decorators import check_allowed_user_class
+from telegram_bot.decorators import check_allowed_user
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class Temperatures:
                                               ExpiresIn=60)
         return image_url
 
-    @check_allowed_user_class
+    @check_allowed_user
     def temperatures_handler(self, update: Update, context: CallbackContext):
         try:
             msg = self.get_temperatures()
@@ -74,7 +74,7 @@ class Temperatures:
         chat_id = update.effective_user.id
         context.bot.sendMessage(chat_id=chat_id, text=msg)
 
-    @check_allowed_user_class
+    @check_allowed_user
     def charts_handler(self, update: Update, context: CallbackContext):
         chart_type_mapping = {'temps': self.get_temperature_chart}
         command_args = update.effective_message.text.lower().lstrip('charts ')

@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters, CallbackQueryHandler
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.decorators import check_allowed_user_class
+from telegram_bot.decorators import check_allowed_user
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class GarageDoorHandler:
         )
         dispatcher.add_handler(CallbackQueryHandler(self.garage_actions_handler, pattern='^garage'))
 
-    @check_allowed_user_class
+    @check_allowed_user
     def garage_actions_handler(self, update: Update, context: CallbackContext):
         garage_handler = self
 
