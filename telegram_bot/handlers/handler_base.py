@@ -1,6 +1,6 @@
 import abc
 
-from telegram_bot.decorators import check_allowed_user
+from telegram_bot.handlers.decorators import check_allowed_user
 
 
 class HandlerBase:

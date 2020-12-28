@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters, CallbackQueryHandler
 
 from telegram_bot.config_util import ConfigHelper
-from telegram_bot.handler_base import HandlerBase
+from telegram_bot.handlers.handler_base import HandlerBase
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
