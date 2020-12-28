@@ -1,16 +1,20 @@
 import logging
+import re
 
 import arrow
 import requests
-from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import CallbackContext, MessageHandler, Filters, CallbackQueryHandler
 
 from telegram_bot.config_util import ConfigHelper
+from telegram_bot.handler_base import HandlerBase
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
-class GarageDoorHandler:
+class GarageDoorHandler(HandlerBase):
     def __init__(self):
         self._garage_config = c.config['garage']
 
@@ -81,3 +85,79 @@ class GarageDoorHandler:
             [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
 
         return options
+
+    def _get_handlers(self):
+        return [
+            (MessageHandler, {'filters': Filters.private & (
+                    Filters.regex(re.compile('^(Garage)', re.IGNORECASE)) |
+                    Filters.regex(re.compile('^(Ga)', re.IGNORECASE))),
+                              'callback': self.garage_actions_handler}
+             ),
+            (CallbackQueryHandler, {'pattern': '^garage',
+                                    'callback': self.garage_actions_handler})
+        ]
+
+    def garage_actions_handler(self, update: Update, context: CallbackContext):
+        garage_handler = self
+
+        return_message = """"""
+        sender_id = update.effective_user.id
+        # Gives menu to select which garage to open
+        if update.callback_query is None:
+            logger.info("Got request to open garage from {}".format(sender_id))
+
+            garage_statuses = garage_handler.get_garage_position()
+            if not garage_statuses:
+                context.bot.sendMessage(chat_id=sender_id, text='An exception occurred while getting garage status',
+                                        reply_keyboard=None)
+                return
+            # Create the response message
+            return_message += "Pick a garage:\n"
+            return_message += garage_handler.status_to_string(garage_statuses)
+
+            # create the keyboard
+            keyboard_options = garage_handler.get_keyboard_format(garage_statuses)
+            reply_keyboard = InlineKeyboardMarkup(keyboard_options, one_time_keyboard=True)
+            context.bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
+
+            return
+
+        if update.callback_query is not None:
+            update.callback_query.answer()
+            action_and_garage = update.callback_query.data
+            if action_and_garage == 'garage cancel':
+                logger.info("Cancelled request to open garage")
+                update.callback_query.edit_message_text('Not doing anything')
+                return
+
+            # process a confirm action
+            action, garage = action_and_garage.lstrip('garage ').split(' ')
+            logger.warning("Got confirmation for triggering garage: {} and action: {}".format(garage, action))
+
+            update.callback_query.edit_message_text(
+                'Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
+
+            bot_admin = c.config['telegram']['bot_admin']
+            if update.effective_user.id != bot_admin:
+                context.bot.sendMessage(chat_id=bot_admin,
+                                        text=f"{update.effective_user.first_name} has action={action} the garage")
+
+            r = garage_handler.control_garage(garage, action)
+
+            if not r:
+                update.callback_query.edit_message_text("An error occurred while trying to trigger the garage.")
+                return
+
+            # check for any errors in triggering
+            if any([resp['error'] for resp in r]):
+                # join the errors together
+                update.callback_query.edit_message_text('|'.join(resp['message'] for resp in r))
+                return
+
+            # No errors
+
+            logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage))
+
+            update.callback_query.edit_message_text('Triggered garage, check status separately')
+            #
+            return
