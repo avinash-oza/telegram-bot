@@ -103,7 +103,7 @@ class CryptoQuotes(HandlerBase):
         key_func_mapping = {'CRYPTOWATCH': self._get_cryptowatch_quotes,
                             'COINMARKETCAP': self._get_cmc_data
                             }
-        t = arrow.get(tzinfo='America/New_York').strftime("%Y-%m-%d %H:%m:%S%p")
+        t = arrow.get(tzinfo='America/New_York').strftime("%Y-%M-%d %H:%m:%S%p")
         string_to_send = f"Time: {t}\n"
 
         for name, call_func in key_func_mapping.items():
