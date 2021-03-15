@@ -6,7 +6,7 @@ if __name__ == '__main__':
     c = ConfigHelper()
     TELEGRAM_TOKEN = c.get('telegram', 'api_key')
 
-    updater = Updater(token=TELEGRAM_TOKEN)
+    updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
     setup_handlers(dispatcher)
 
