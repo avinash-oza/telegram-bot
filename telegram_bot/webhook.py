@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import Dispatcher
 from telegram.ext import MessageHandler, Filters, CallbackContext
 
+from handlers.nagios_ack import setup_test_handlers
 from telegram_bot.config_util import ConfigHelper
 from telegram_bot.handlers.garage_door import GarageDoorHandler
 from telegram_bot.handlers.market_quotes import CryptoQuotes
@@ -105,6 +106,7 @@ def setup_handlers(dispatcher):
     GarageDoorHandler().add_handlers(dispatcher)
     CryptoQuotes().add_handlers(dispatcher)
     Temperatures().add_handlers(dispatcher)
+    setup_test_handlers(dispatcher)
 
     # Add handler for messages we aren't handling
     dispatcher.add_handler(MessageHandler(Filters.private & (Filters.command | Filters.text), _unknown_handler))
