@@ -14,7 +14,7 @@ class ConfigHelper:
             self._env_name = os.environ['env_name'].lower()
             self._config_bucket = os.environ['config_bucket']
             self.__config = None
-            print("Creating class")
+            logger.info("Creating class")
 
         def get(self, section, value):
             return self.config[section][value]

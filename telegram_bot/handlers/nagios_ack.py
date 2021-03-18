@@ -1,10 +1,13 @@
+import logging
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext
 from telegram.ext import CommandHandler, CallbackQueryHandler
 
-import logging
+from config_util import ConfigHelper
 
 logger = logging.getLogger(__name__)
+config = ConfigHelper()
 
 
 def setup_test_handlers(dispatcher):
@@ -43,35 +46,37 @@ class NagiosMenu:
 class NagiosKeyboard:
     @staticmethod
     def server_keyboard():
-        servers = ['s1', 's2', 's3']
+        servers = config.config['nagios']['servers']
         keyboard = []
-        #             [InlineKeyboardButton('Menu 3', callback_data='m3')]]
         for server in servers:
             keyboard.append(
                 [InlineKeyboardButton(server, callback_data=f'service|{server}')]
             )
+
         return InlineKeyboardMarkup(keyboard)
 
     @staticmethod
     def service_keyboard(chat_data):
-        services = ['service_1', 'service_2', 'service_3']
+        actions = config.config['nagios']['services']
         keyboard = []
-        #             [InlineKeyboardButton('Main menu', callback_data='main')]]
-        for service in services:
+        for action in actions:
             keyboard.append(
-                [InlineKeyboardButton(service, callback_data=f'action|{chat_data}|{service}')]
+                [InlineKeyboardButton(action['name'], callback_data=f"action|{chat_data}|{action['callback']}")]
             )
+
+        keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
         return InlineKeyboardMarkup(keyboard)
 
     @staticmethod
     def action_keyboard(chat_data):
-        actions = ['Schedule_Downtime', 'Acknowledge']
+        actions = config.config['nagios']['actions']
         keyboard = []
-        #             [InlineKeyboardButton('Main menu', callback_data='main')]]
         for action in actions:
             keyboard.append(
-                [InlineKeyboardButton(action, callback_data=f'execute|{chat_data}|{action}')]
+                [InlineKeyboardButton(action['name'], callback_data=f"execute|{chat_data}|{action['callback']}")]
             )
+
+        keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
         return InlineKeyboardMarkup(keyboard)
 
 
