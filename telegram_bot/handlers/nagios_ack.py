@@ -47,37 +47,17 @@ class NagiosKeyboard:
     @staticmethod
     def server_keyboard():
         servers = config.config['nagios']['servers']
-        keyboard = []
-        for server in servers:
-            keyboard.append(
-                [InlineKeyboardButton(server, callback_data=f'service|{server}')]
-            )
-
-        return InlineKeyboardMarkup(keyboard)
+        return build_keyboard_from_options(servers, '', 'service')
 
     @staticmethod
     def service_keyboard(chat_data):
-        actions = config.config['nagios']['services']
-        keyboard = []
-        for action in actions:
-            keyboard.append(
-                [InlineKeyboardButton(action['name'], callback_data=f"action|{chat_data}|{action['callback']}")]
-            )
-
-        keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
-        return InlineKeyboardMarkup(keyboard)
+        services = config.config['nagios']['services']
+        return build_keyboard_from_options(services, chat_data, 'action')
 
     @staticmethod
     def action_keyboard(chat_data):
         actions = config.config['nagios']['actions']
-        keyboard = []
-        for action in actions:
-            keyboard.append(
-                [InlineKeyboardButton(action['name'], callback_data=f"execute|{chat_data}|{action['callback']}")]
-            )
-
-        keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
-        return InlineKeyboardMarkup(keyboard)
+        return build_keyboard_from_options(actions, chat_data, 'execute')
 
 
 class NagiosMenuOptionHandler:
@@ -85,6 +65,32 @@ class NagiosMenuOptionHandler:
     def execute_command(update, context: CallbackContext):
         update.callback_query.answer()
         logger.info(f"Got command string: {update.callback_query.data}")
-
+        convert_callback_data(update.callback_query.data)
         msg = "Successfully ran command"
         update.callback_query.message.edit_text(msg)
+
+
+def build_keyboard_from_options(options, prior_callback_data, callback_prefix):
+    keyboard = []
+    for idx, action in enumerate(options):
+        keyboard.append(
+            [InlineKeyboardButton(action['name'], callback_data=f"{callback_prefix}|{prior_callback_data}|{idx}")]
+        )
+
+    keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def convert_callback_data(callback_str):
+    # example is execute|action|service|1|0|0
+    text_options = []
+    for option, option_list in zip(callback_str[::-1].split('|'),
+                                   ['actions', 'services', 'servers']):
+        text_options.append(key_to_callback_data(int(option), config.config['nagios'][option_list]))
+
+    logger.info(f"Selected option list: {text_options}")
+
+
+def key_to_callback_data(key, options):
+    d = {idx: option['callback'] for idx, option in enumerate(options)}
+    return d[key]
