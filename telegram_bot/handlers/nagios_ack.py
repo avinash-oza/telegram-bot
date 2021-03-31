@@ -28,17 +28,20 @@ class NagiosMenu:
 
     @staticmethod
     def service_menu(update, context: CallbackContext):
+        update.callback_query.answer()
         update.callback_query.message.edit_text('Choose a service on the Server:',
                                                 reply_markup=NagiosKeyboard.service_keyboard(
                                                     update.callback_query.data))
 
     @staticmethod
     def server_menu(update: Update, context: CallbackContext):
+        update.callback_query.answer()
         update.callback_query.message.edit_text('Choose a server:',
                                                 reply_markup=NagiosKeyboard.server_keyboard())
 
     @staticmethod
     def action_menu(update: Update, context: CallbackContext):
+        update.callback_query.answer()
         update.callback_query.message.edit_text('Choose an action to run:',
                                                 reply_markup=NagiosKeyboard.action_keyboard(update.callback_query.data))
 
@@ -47,7 +50,7 @@ class NagiosKeyboard:
     @staticmethod
     def server_keyboard():
         servers = config.config['nagios']['servers']
-        return build_keyboard_from_options(servers, '', 'service')
+        return build_keyboard_from_options(servers, '', 'service', add_main_menu=False)
 
     @staticmethod
     def service_keyboard(chat_data):
@@ -70,14 +73,15 @@ class NagiosMenuOptionHandler:
         update.callback_query.message.edit_text(msg)
 
 
-def build_keyboard_from_options(options, prior_callback_data, callback_prefix):
+def build_keyboard_from_options(options, prior_callback_data, callback_prefix, add_main_menu=True):
     keyboard = []
     for idx, action in enumerate(options):
         keyboard.append(
             [InlineKeyboardButton(action['name'], callback_data=f"{callback_prefix}|{prior_callback_data}|{idx}")]
         )
 
-    keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
+    if add_main_menu:
+        keyboard.append([InlineKeyboardButton('Main Menu', callback_data='server')])
     return InlineKeyboardMarkup(keyboard)
 
 
