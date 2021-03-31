@@ -1,8 +1,9 @@
 import logging
+import re
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext
-from telegram.ext import CommandHandler, CallbackQueryHandler
+from telegram.ext import CallbackContext, MessageHandler, Filters
+from telegram.ext import CallbackQueryHandler
 
 from config_util import ConfigHelper
 
@@ -10,8 +11,10 @@ logger = logging.getLogger(__name__)
 config = ConfigHelper()
 
 
-def setup_test_handlers(dispatcher):
-    dispatcher.add_handler(CommandHandler('Start', NagiosMenu.start))
+def setup_nagios_handlers(dispatcher):
+    start_handler = MessageHandler(filters=Filters.private & Filters.regex(re.compile('^(Na)', re.IGNORECASE)),
+                                   callback=NagiosMenu.start)
+    dispatcher.add_handler(start_handler)
     dispatcher.add_handler(CallbackQueryHandler(NagiosMenu.server_menu, pattern='server'))
     dispatcher.add_handler(CallbackQueryHandler(NagiosMenu.service_menu, pattern='service'))
     dispatcher.add_handler(CallbackQueryHandler(NagiosMenu.action_menu, pattern='action'))
