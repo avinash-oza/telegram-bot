@@ -95,7 +95,8 @@ def convert_callback_data(callback_str):
                                    ['actions', 'services', 'servers']):
         text_options.append(key_to_callback_data(int(option), config.config['nagios'][option_list]))
 
-    logger.info(f"Selected option list: {text_options}")
+    command, service, host = text_options
+    logger.info(f"Selected option list: command={command}, service={service}, host={host}")
 
 
 def key_to_callback_data(key, options):
