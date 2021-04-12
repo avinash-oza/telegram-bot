@@ -1,6 +1,8 @@
+import datetime
 import logging
 import re
 
+import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 from telegram.ext import CallbackQueryHandler
@@ -9,6 +11,12 @@ from config_util import ConfigHelper
 
 logger = logging.getLogger(__name__)
 config = ConfigHelper()
+
+SUPPORTED_COMMANDS = {
+    'SCHEDULE_SVC_DOWNTIME': 'SCHEDULE_SVC_DOWNTIME;{host_name};{service_name};{start_time};{end_time};1;0;{time_window};{author};{comment}'
+}
+
+TIME_WINDOW_DAYS = 1
 
 
 def setup_nagios_handlers(dispatcher):
@@ -71,8 +79,8 @@ class NagiosMenuOptionHandler:
     def execute_command(update, context: CallbackContext):
         update.callback_query.answer()
         logger.info(f"Got command string: {update.callback_query.data}")
-        convert_callback_data(update.callback_query.data)
-        msg = "Successfully ran command"
+        msg = convert_callback_data(update.callback_query.data)
+
         update.callback_query.message.edit_text(msg)
 
 
@@ -97,8 +105,44 @@ def convert_callback_data(callback_str):
 
     command, service, host = text_options
     logger.info(f"Selected option list: command={command}, service={service}, host={host}")
+    return submit_command(command, service, host)
 
 
 def key_to_callback_data(key, options):
     d = {idx: option['callback'] for idx, option in enumerate(options)}
     return d[key]
+
+
+def submit_command(command_name, service, host):
+    command_name = command_name.upper()
+    try:
+        cmd_str = SUPPORTED_COMMANDS[command_name]
+    except KeyError:
+        return f"Received an unsupported command: {command_name}"
+
+    start_time = datetime.datetime.today()
+    end_time = start_time + datetime.timedelta(days=TIME_WINDOW_DAYS)
+
+    formatted_str = cmd_str.format(
+        host_name=host,
+        service_name=service,
+        start_time=round(start_time.timestamp()),
+        end_time=round(end_time.timestamp()),
+        time_window=TIME_WINDOW_DAYS * 60 * 60 * 24,
+        author='telegram-bot',
+        comment='Added by telegram-bot'
+    )
+    payload = {
+        'token': config.config['nagios']['passive_checks']['api_key'],
+        'cmd': 'submitcmd',
+        'command': formatted_str
+    }
+    resp = requests.post(config.config['nagios']['passive_checks']['endpoint'], params=payload)
+
+    try:
+        resp.raise_for_status()
+    except Exception as e:
+        logger.exception("Error when trying to run command")
+        return f"Exception when running command: {str(e)}"
+    else:
+        return f"Successfully ran command: {command_name}"
