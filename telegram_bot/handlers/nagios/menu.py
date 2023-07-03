@@ -4,7 +4,7 @@ import re
 
 import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext, MessageHandler, Filters
+from telegram.ext import CallbackContext, MessageHandler, filters
 from telegram.ext import CallbackQueryHandler
 
 from config_helper import ConfigHelper
@@ -21,7 +21,8 @@ TIME_WINDOW_DAYS = 1
 
 def setup_nagios_handlers(dispatcher):
     start_handler = MessageHandler(
-        filters=Filters.private & Filters.regex(re.compile("^(Na)", re.IGNORECASE)),
+        filters=filters.ChatType.PRIVATE
+        & filters.Regex(re.compile("^(Na)", re.IGNORECASE)),
         callback=NagiosMenu.start,
     )
     dispatcher.add_handler(start_handler)
@@ -41,33 +42,33 @@ def setup_nagios_handlers(dispatcher):
 
 class NagiosMenu:
     @staticmethod
-    def start(update: Update, context: CallbackContext):
+    async def start(update: Update, context: CallbackContext):
         chat_id = update.effective_user.id
-        context.bot.sendMessage(
+        await context.bot.sendMessage(
             chat_id=chat_id,
             text="Choose a server:",
             reply_markup=NagiosKeyboard.server_keyboard(),
         )
 
     @staticmethod
-    def service_menu(update, context: CallbackContext):
-        update.callback_query.answer()
-        update.callback_query.message.edit_text(
+    async def service_menu(update, context: CallbackContext):
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
             "Choose a service on the Server:",
             reply_markup=NagiosKeyboard.service_keyboard(update.callback_query.data),
         )
 
     @staticmethod
-    def server_menu(update: Update, context: CallbackContext):
-        update.callback_query.answer()
-        update.callback_query.message.edit_text(
+    async def server_menu(update: Update, context: CallbackContext):
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
             "Choose a server:", reply_markup=NagiosKeyboard.server_keyboard()
         )
 
     @staticmethod
-    def action_menu(update: Update, context: CallbackContext):
-        update.callback_query.answer()
-        update.callback_query.message.edit_text(
+    async def action_menu(update: Update, context: CallbackContext):
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text(
             "Choose an action to run:",
             reply_markup=NagiosKeyboard.action_keyboard(update.callback_query.data),
         )
@@ -92,12 +93,12 @@ class NagiosKeyboard:
 
 class NagiosMenuOptionHandler:
     @staticmethod
-    def execute_command(update, context: CallbackContext):
-        update.callback_query.answer()
+    async def execute_command(update, context: CallbackContext):
+        await update.callback_query.answer()
         logger.info(f"Got command string: {update.callback_query.data}")
         msg = convert_callback_data(update.callback_query.data)
 
-        update.callback_query.message.edit_text(msg)
+        await update.callback_query.message.edit_text(msg)
 
 
 def build_keyboard_from_options(

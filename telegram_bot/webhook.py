@@ -6,9 +6,14 @@ from telegram import Update
 from telegram.ext import Application, filters
 from telegram.ext import MessageHandler, CallbackContext
 
+from handlers.garage_door import GarageDoorHandler
 from handlers.market_quotes import CryptoQuotes
+from handlers.nagios.menu import setup_nagios_handlers
+from handlers.temperature_data import Temperatures
+
 # from handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.config_helper import ConfigHelper
+
 # from telegram_bot.handlers.garage_door import GarageDoorHandler
 # from telegram_bot.handlers.market_quotes import CryptoQuotes
 # from telegram_bot.handlers.temperature_data import Temperatures
@@ -101,10 +106,10 @@ def _set_webhook(event, context, bot):
 
 
 def setup_handlers(application):
-    # GarageDoorHandler().add_handlers(application)
+    GarageDoorHandler().add_handlers(application)
     CryptoQuotes().add_handlers(application)
-    # Temperatures().add_handlers(application)
-    # setup_nagios_handlers(application)
+    Temperatures().add_handlers(application)
+    setup_nagios_handlers(application)
 
     # Add handler for messages we aren't handling
     application.add_handler(
@@ -115,8 +120,8 @@ def setup_handlers(application):
     )
 
 
-def _unknown_handler(update: Update, context: CallbackContext):
+async def _unknown_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_user.id
     logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
-    context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")
+    await context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")

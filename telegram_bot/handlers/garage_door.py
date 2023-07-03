@@ -5,7 +5,7 @@ import arrow
 import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
-from telegram.ext import CallbackContext, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import CallbackContext, MessageHandler, filters, CallbackQueryHandler
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
@@ -98,10 +98,10 @@ class GarageDoorHandler(HandlerBase):
             (
                 MessageHandler,
                 {
-                    "filters": Filters.private
+                    "filters": filters.ChatType.PRIVATE
                     & (
-                        Filters.regex(re.compile("^(Garage)", re.IGNORECASE))
-                        | Filters.regex(re.compile("^(Ga)", re.IGNORECASE))
+                        filters.Regex(re.compile("^(Garage)", re.IGNORECASE))
+                        | filters.Regex(re.compile("^(Ga)", re.IGNORECASE))
                     ),
                     "callback": self.garage_actions_handler,
                 },
@@ -112,7 +112,7 @@ class GarageDoorHandler(HandlerBase):
             ),
         ]
 
-    def garage_actions_handler(self, update: Update, context: CallbackContext):
+    async def garage_actions_handler(self, update: Update, context: CallbackContext):
         garage_handler = self
 
         return_message = """"""
@@ -123,7 +123,7 @@ class GarageDoorHandler(HandlerBase):
 
             garage_statuses = garage_handler.get_garage_position()
             if not garage_statuses:
-                context.bot.sendMessage(
+                await context.bot.sendMessage(
                     chat_id=sender_id,
                     text="An exception occurred while getting garage status",
                     reply_keyboard=None,
@@ -138,18 +138,18 @@ class GarageDoorHandler(HandlerBase):
             reply_keyboard = InlineKeyboardMarkup(
                 keyboard_options, one_time_keyboard=True
             )
-            context.bot.sendMessage(
+            await context.bot.sendMessage(
                 chat_id=sender_id, text=return_message, reply_markup=reply_keyboard
             )
 
             return
 
         if update.callback_query is not None:
-            update.callback_query.answer()
+            await update.callback_query.answer()
             action_and_garage = update.callback_query.data
             if action_and_garage == "garage cancel":
                 logger.info("Cancelled request to open garage")
-                update.callback_query.edit_message_text("Not doing anything")
+                await update.callback_query.edit_message_text("Not doing anything")
                 return
 
             # process a confirm action
@@ -160,7 +160,7 @@ class GarageDoorHandler(HandlerBase):
                 )
             )
 
-            update.callback_query.edit_message_text(
+            await update.callback_query.edit_message_text(
                 "Triggering the {} garage to {}".format(
                     garage.capitalize(), action.lower()
                 )
@@ -168,7 +168,7 @@ class GarageDoorHandler(HandlerBase):
 
             bot_admin = c.config["telegram"]["bot_admin"]
             if update.effective_user.id != bot_admin:
-                context.bot.sendMessage(
+                await context.bot.sendMessage(
                     chat_id=bot_admin,
                     text=f"{update.effective_user.first_name} has action={action} the garage",
                 )
@@ -176,7 +176,7 @@ class GarageDoorHandler(HandlerBase):
             r = garage_handler.control_garage(garage, action)
 
             if not r:
-                update.callback_query.edit_message_text(
+                await update.callback_query.edit_message_text(
                     "An error occurred while trying to trigger the garage."
                 )
                 return
@@ -184,7 +184,7 @@ class GarageDoorHandler(HandlerBase):
             # check for any errors in triggering
             if any([resp["error"] for resp in r]):
                 # join the errors together
-                update.callback_query.edit_message_text(
+                await update.callback_query.edit_message_text(
                     "|".join(resp["message"] for resp in r)
                 )
                 return
@@ -197,7 +197,7 @@ class GarageDoorHandler(HandlerBase):
                 )
             )
 
-            update.callback_query.edit_message_text(
+            await update.callback_query.edit_message_text(
                 "Triggered garage, check status separately"
             )
             #
