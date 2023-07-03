@@ -3,20 +3,13 @@ import logging
 
 import telegram
 from telegram import Update
-from telegram.ext import Application, filters
-from telegram.ext import MessageHandler, CallbackContext
+from telegram.ext import MessageHandler, CallbackContext, Application, filters
 
 from handlers.garage_door import GarageDoorHandler
 from handlers.market_quotes import CryptoQuotes
 from handlers.nagios.menu import setup_nagios_handlers
 from handlers.temperature_data import Temperatures
-
-# from handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.config_helper import ConfigHelper
-
-# from telegram_bot.handlers.garage_door import GarageDoorHandler
-# from telegram_bot.handlers.market_quotes import CryptoQuotes
-# from telegram_bot.handlers.temperature_data import Temperatures
 
 c = ConfigHelper()
 
@@ -42,27 +35,26 @@ def webhook(event, context):
     Runs the Telegram webhook.
     """
 
-    bot = _configure_telegram()
-    dispatcher = Dispatcher(bot, None, workers=0)
+    application = _configure_telegram()
 
-    setup_handlers(dispatcher)
+    setup_handlers(application)
 
     logger.info("Event: {}".format(event))
 
     if event.get("httpMethod") == "POST" and event.get("body"):
         logger.info("Message received")
-        update = telegram.Update.de_json(json.loads(event.get("body")), bot)
+        update = telegram.Update.de_json(json.loads(event.get("body")), application.bot)
         chat_id = update.effective_user
         text = update.effective_message
 
-        dispatcher.process_update(update)
+        application.process_update(update)
 
         logger.info(f"chat_id={chat_id}, TEXT:{text}")
         logger.info("Message sent")
 
     elif event.get("httpMethod") == "GET" and event.get("path") == "/setWebHook":
         logger.info("Setting webhook")
-        _set_webhook(event, context, bot)
+        _set_webhook(event, context, application.bot)
 
     return OK_RESPONSE
 
@@ -82,7 +74,7 @@ def _configure_telegram():
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    return application.bot
+    return application
 
 
 def _set_webhook(event, context, bot):
