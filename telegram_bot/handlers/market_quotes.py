@@ -4,7 +4,7 @@ import re
 import arrow
 import requests
 from telegram import Update
-from telegram.ext import CallbackContext, MessageHandler, Filters
+from telegram.ext import CallbackContext, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
@@ -119,11 +119,11 @@ class CryptoQuotes(HandlerBase):
 
         return string_to_send
 
-    def _handle_message(self, update: Update, context: CallbackContext):
+    async def _handle_message(self, update: Update, context: CallbackContext):
         quotes_response = self._build_response()
 
         chat_id = update.effective_user.id
-        context.bot.sendMessage(
+        await context.bot.sendMessage(
             chat_id=chat_id, text=quotes_response, parse_mode="Markdown"
         )
 
@@ -132,8 +132,8 @@ class CryptoQuotes(HandlerBase):
             (
                 MessageHandler,
                 {
-                    "filters": Filters.private
-                    & Filters.regex(re.compile("^(quotes)", re.IGNORECASE)),
+                    "filters": filters.ChatType.PRIVATE
+                    & filters.Regex(re.compile("^(quotes)", re.IGNORECASE)),
                     "callback": self._handle_message,
                 },
             )

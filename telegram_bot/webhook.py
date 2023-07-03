@@ -3,14 +3,15 @@ import logging
 
 import telegram
 from telegram import Update
-from telegram.ext import Dispatcher
-from telegram.ext import MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, filters
+from telegram.ext import MessageHandler, CallbackContext
 
-from handlers.nagios.menu import setup_nagios_handlers
+from handlers.market_quotes import CryptoQuotes
+# from handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.config_helper import ConfigHelper
-from telegram_bot.handlers.garage_door import GarageDoorHandler
-from telegram_bot.handlers.market_quotes import CryptoQuotes
-from telegram_bot.handlers.temperature_data import Temperatures
+# from telegram_bot.handlers.garage_door import GarageDoorHandler
+# from telegram_bot.handlers.market_quotes import CryptoQuotes
+# from telegram_bot.handlers.temperature_data import Temperatures
 
 c = ConfigHelper()
 
@@ -74,9 +75,9 @@ def _configure_telegram():
         logger.error(msg)
         raise RuntimeError(msg)
 
-    bot = telegram.Bot(TELEGRAM_TOKEN)
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    return bot
+    return application.bot
 
 
 def _set_webhook(event, context, bot):
@@ -99,16 +100,17 @@ def _set_webhook(event, context, bot):
     return ERROR_RESPONSE
 
 
-def setup_handlers(dispatcher):
-    GarageDoorHandler().add_handlers(dispatcher)
-    CryptoQuotes().add_handlers(dispatcher)
-    Temperatures().add_handlers(dispatcher)
-    setup_nagios_handlers(dispatcher)
+def setup_handlers(application):
+    # GarageDoorHandler().add_handlers(application)
+    CryptoQuotes().add_handlers(application)
+    # Temperatures().add_handlers(application)
+    # setup_nagios_handlers(application)
 
     # Add handler for messages we aren't handling
-    dispatcher.add_handler(
+    application.add_handler(
         MessageHandler(
-            Filters.private & (Filters.command | Filters.text), _unknown_handler
+            filters.ChatType.PRIVATE & (filters.COMMAND | filters.TEXT),
+            _unknown_handler,
         )
     )
 
