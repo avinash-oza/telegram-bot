@@ -19,19 +19,16 @@ if len(logging.getLogger().handlers) > 0:
     # `.basicConfig` does not execute. Thus we set the level directly.
     logging.getLogger().setLevel(logging.INFO)
 else:
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 
 logger = logging.getLogger()
 
 OK_RESPONSE = {
-    'statusCode': 200,
-    'headers': {'Content-Type': 'application/json'},
-    'body': json.dumps('ok')
+    "statusCode": 200,
+    "headers": {"Content-Type": "application/json"},
+    "body": json.dumps("ok"),
 }
-ERROR_RESPONSE = {
-    'statusCode': 400,
-    'body': json.dumps('Oops, something went wrong!')
-}
+ERROR_RESPONSE = {"statusCode": 400, "body": json.dumps("Oops, something went wrong!")}
 
 
 def webhook(event, context):
@@ -44,20 +41,20 @@ def webhook(event, context):
 
     setup_handlers(dispatcher)
 
-    logger.info('Event: {}'.format(event))
+    logger.info("Event: {}".format(event))
 
-    if event.get('httpMethod') == 'POST' and event.get('body'):
-        logger.info('Message received')
-        update = telegram.Update.de_json(json.loads(event.get('body')), bot)
+    if event.get("httpMethod") == "POST" and event.get("body"):
+        logger.info("Message received")
+        update = telegram.Update.de_json(json.loads(event.get("body")), bot)
         chat_id = update.effective_user
         text = update.effective_message
 
         dispatcher.process_update(update)
 
         logger.info(f"chat_id={chat_id}, TEXT:{text}")
-        logger.info('Message sent')
+        logger.info("Message sent")
 
-    elif event.get('httpMethod') == 'GET' and event.get('path') == '/setWebHook':
+    elif event.get("httpMethod") == "GET" and event.get("path") == "/setWebHook":
         logger.info("Setting webhook")
         _set_webhook(event, context, bot)
 
@@ -71,9 +68,9 @@ def _configure_telegram():
     Returns a bot instance.
     """
 
-    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
+    TELEGRAM_TOKEN = c.get("telegram", "api_key")
     if not TELEGRAM_TOKEN:
-        msg = 'The TELEGRAM_BOT_API_KEY must be set'
+        msg = "The TELEGRAM_BOT_API_KEY must be set"
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -87,16 +84,16 @@ def _set_webhook(event, context, bot):
     Sets the Telegram bot webhook.
     """
 
-    logger.info('Got request to set webhook')
-    logger.info(f'EVENT: {event}')
+    logger.info("Got request to set webhook")
+    logger.info(f"EVENT: {event}")
 
     url = f"https://{event.get('headers').get('Host')}/"
 
-    logger.info(f'Setting webhook url={url}')
+    logger.info(f"Setting webhook url={url}")
     webhook = bot.set_webhook(url)
 
     if webhook:
-        logger.info(f'Successfully set webhook')
+        logger.info(f"Successfully set webhook")
         return OK_RESPONSE
 
     return ERROR_RESPONSE
@@ -109,7 +106,11 @@ def setup_handlers(dispatcher):
     setup_nagios_handlers(dispatcher)
 
     # Add handler for messages we aren't handling
-    dispatcher.add_handler(MessageHandler(Filters.private & (Filters.command | Filters.text), _unknown_handler))
+    dispatcher.add_handler(
+        MessageHandler(
+            Filters.private & (Filters.command | Filters.text), _unknown_handler
+        )
+    )
 
 
 def _unknown_handler(update: Update, context: CallbackContext):

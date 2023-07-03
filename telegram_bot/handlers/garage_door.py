@@ -16,29 +16,29 @@ logger = logging.getLogger(__name__)
 
 class GarageDoorHandler(HandlerBase):
     def __init__(self):
-        self._garage_config = c.config['garage']
+        self._garage_config = c.config["garage"]
 
     def get_garage_position(self):
         # Returns whether the garage is open or closed
-        url = self._garage_config[f'status_endpoint']
+        url = self._garage_config[f"status_endpoint"]
         session = self._get_session()
-        resp = session.get(url, timeout=self._garage_config['timeout'])
+        resp = session.get(url, timeout=self._garage_config["timeout"])
         resp.raise_for_status()
 
-        return resp.json()['status']
+        return resp.json()["status"]
 
     def control_garage(self, garage_name, action):
-        message = {'action': action, 'type': 'CONTROL'}
-        url = self._garage_config[f'control_endpoint'] + f'/{garage_name.upper()}'
+        message = {"action": action, "type": "CONTROL"}
+        url = self._garage_config[f"control_endpoint"] + f"/{garage_name.upper()}"
         session = self._get_session()
-        resp = session.post(url, json=message, timeout=self._garage_config['timeout'])
+        resp = session.post(url, json=message, timeout=self._garage_config["timeout"])
         resp.raise_for_status()
 
-        return resp.json()['status']
+        return resp.json()["status"]
 
     def _get_session(self):
-        username = self._garage_config['username']
-        password = self._garage_config['password']
+        username = self._garage_config["username"]
+        password = self._garage_config["password"]
         session = requests.Session()
         session.auth = (username, password)
 
@@ -51,12 +51,17 @@ class GarageDoorHandler(HandlerBase):
         :return: str
         """
         return_message = ""
-        current_time = arrow.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        current_time = arrow.now().strftime("%Y-%m-%d %I:%M:%S %p")
 
         for one_garage_dict in garage_statuses:
-            garage_name = one_garage_dict['garage_name']
-            current_status = one_garage_dict['status']
-            return_message += '{:<5} : {}'.format(garage_name, ' '.join([current_status, current_time])) + '\n'
+            garage_name = one_garage_dict["garage_name"]
+            current_status = one_garage_dict["status"]
+            return_message += (
+                "{:<5} : {}".format(
+                    garage_name, " ".join([current_status, current_time])
+                )
+                + "\n"
+            )
 
         return return_message
 
@@ -71,30 +76,40 @@ class GarageDoorHandler(HandlerBase):
 
         options = []
         for one_garage_dict in garage_statuses:
-            garage_name = one_garage_dict['garage_name']
-            current_status = one_garage_dict['status']
+            garage_name = one_garage_dict["garage_name"]
+            current_status = one_garage_dict["status"]
 
             # Determine whether this can be opened or closed
-            if not one_garage_dict['error']:
-                action = 'CLOSE' if current_status == 'OPEN' else 'OPEN'
-                callback_data = ' '.join(['garage', action, str(garage_name)])
-                key_text = '{} the {} Garage'.format(action.capitalize(), garage_name)
+            if not one_garage_dict["error"]:
+                action = "CLOSE" if current_status == "OPEN" else "OPEN"
+                callback_data = " ".join(["garage", action, str(garage_name)])
+                key_text = "{} the {} Garage".format(action.capitalize(), garage_name)
                 options.append(
-                    [InlineKeyboardButton(key_text, callback_data=callback_data)])  # Store the key for the keyboard
+                    [InlineKeyboardButton(key_text, callback_data=callback_data)]
+                )  # Store the key for the keyboard
         options.append(
-            [InlineKeyboardButton("Nevermind", callback_data='garage cancel')])  # Store the key for the keyboard
+            [InlineKeyboardButton("Nevermind", callback_data="garage cancel")]
+        )  # Store the key for the keyboard
 
         return options
 
     def _get_handlers(self):
         return [
-            (MessageHandler, {'filters': Filters.private & (
-                    Filters.regex(re.compile('^(Garage)', re.IGNORECASE)) |
-                    Filters.regex(re.compile('^(Ga)', re.IGNORECASE))),
-                              'callback': self.garage_actions_handler}
-             ),
-            (CallbackQueryHandler, {'pattern': '^garage',
-                                    'callback': self.garage_actions_handler})
+            (
+                MessageHandler,
+                {
+                    "filters": Filters.private
+                    & (
+                        Filters.regex(re.compile("^(Garage)", re.IGNORECASE))
+                        | Filters.regex(re.compile("^(Ga)", re.IGNORECASE))
+                    ),
+                    "callback": self.garage_actions_handler,
+                },
+            ),
+            (
+                CallbackQueryHandler,
+                {"pattern": "^garage", "callback": self.garage_actions_handler},
+            ),
         ]
 
     def garage_actions_handler(self, update: Update, context: CallbackContext):
@@ -108,8 +123,11 @@ class GarageDoorHandler(HandlerBase):
 
             garage_statuses = garage_handler.get_garage_position()
             if not garage_statuses:
-                context.bot.sendMessage(chat_id=sender_id, text='An exception occurred while getting garage status',
-                                        reply_keyboard=None)
+                context.bot.sendMessage(
+                    chat_id=sender_id,
+                    text="An exception occurred while getting garage status",
+                    reply_keyboard=None,
+                )
                 return
             # Create the response message
             return_message += "Pick a garage:\n"
@@ -117,47 +135,70 @@ class GarageDoorHandler(HandlerBase):
 
             # create the keyboard
             keyboard_options = garage_handler.get_keyboard_format(garage_statuses)
-            reply_keyboard = InlineKeyboardMarkup(keyboard_options, one_time_keyboard=True)
-            context.bot.sendMessage(chat_id=sender_id, text=return_message, reply_markup=reply_keyboard)
+            reply_keyboard = InlineKeyboardMarkup(
+                keyboard_options, one_time_keyboard=True
+            )
+            context.bot.sendMessage(
+                chat_id=sender_id, text=return_message, reply_markup=reply_keyboard
+            )
 
             return
 
         if update.callback_query is not None:
             update.callback_query.answer()
             action_and_garage = update.callback_query.data
-            if action_and_garage == 'garage cancel':
+            if action_and_garage == "garage cancel":
                 logger.info("Cancelled request to open garage")
-                update.callback_query.edit_message_text('Not doing anything')
+                update.callback_query.edit_message_text("Not doing anything")
                 return
 
             # process a confirm action
-            action, garage = action_and_garage.lstrip('garage ').split(' ')
-            logger.warning("Got confirmation for triggering garage: {} and action: {}".format(garage, action))
+            action, garage = action_and_garage.lstrip("garage ").split(" ")
+            logger.warning(
+                "Got confirmation for triggering garage: {} and action: {}".format(
+                    garage, action
+                )
+            )
 
             update.callback_query.edit_message_text(
-                'Triggering the {} garage to {}'.format(garage.capitalize(), action.lower()))
+                "Triggering the {} garage to {}".format(
+                    garage.capitalize(), action.lower()
+                )
+            )
 
-            bot_admin = c.config['telegram']['bot_admin']
+            bot_admin = c.config["telegram"]["bot_admin"]
             if update.effective_user.id != bot_admin:
-                context.bot.sendMessage(chat_id=bot_admin,
-                                        text=f"{update.effective_user.first_name} has action={action} the garage")
+                context.bot.sendMessage(
+                    chat_id=bot_admin,
+                    text=f"{update.effective_user.first_name} has action={action} the garage",
+                )
 
             r = garage_handler.control_garage(garage, action)
 
             if not r:
-                update.callback_query.edit_message_text("An error occurred while trying to trigger the garage.")
+                update.callback_query.edit_message_text(
+                    "An error occurred while trying to trigger the garage."
+                )
                 return
 
             # check for any errors in triggering
-            if any([resp['error'] for resp in r]):
+            if any([resp["error"] for resp in r]):
                 # join the errors together
-                update.callback_query.edit_message_text('|'.join(resp['message'] for resp in r))
+                update.callback_query.edit_message_text(
+                    "|".join(resp["message"] for resp in r)
+                )
                 return
 
             # No errors
 
-            logger.info("User triggered opening of garage sender_id={} garage_name={}".format(sender_id, garage))
+            logger.info(
+                "User triggered opening of garage sender_id={} garage_name={}".format(
+                    sender_id, garage
+                )
+            )
 
-            update.callback_query.edit_message_text('Triggered garage, check status separately')
+            update.callback_query.edit_message_text(
+                "Triggered garage, check status separately"
+            )
             #
             return
