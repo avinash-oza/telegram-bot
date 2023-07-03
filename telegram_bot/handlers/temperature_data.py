@@ -7,7 +7,7 @@ import requests
 from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 
-from telegram_bot.config_util import ConfigHelper
+from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
 
 c = ConfigHelper()

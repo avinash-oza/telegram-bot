@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext, MessageHandler, Filters
 from telegram.ext import CallbackQueryHandler
 
-from config_util import ConfigHelper
+from config_helper import ConfigHelper
 
 logger = logging.getLogger(__name__)
 config = ConfigHelper()

@@ -1,6 +1,6 @@
 from telegram.ext import Updater
 from telegram_bot.webhook import setup_handlers
-from telegram_bot.config_util import ConfigHelper
+from telegram_bot.config_helper import ConfigHelper
 
 if __name__ == '__main__':
     c = ConfigHelper()

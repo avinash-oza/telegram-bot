@@ -4,7 +4,7 @@ from functools import wraps
 from telegram import Update
 from telegram.ext import CallbackContext
 
-from telegram_bot.config_util import ConfigHelper
+from telegram_bot.config_helper import ConfigHelper
 
 c = ConfigHelper()
 logger = logging.getLogger(__name__)
