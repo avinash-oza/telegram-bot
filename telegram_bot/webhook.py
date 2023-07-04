@@ -1,15 +1,15 @@
 import json
 import logging
-
+import asyncio
 import telegram
-from telegram import Update
-from telegram.ext import MessageHandler, CallbackContext, Application, filters
+from telegram.ext import MessageHandler, Application, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.garage_door import GarageDoorHandler
 from telegram_bot.handlers.market_quotes import CryptoQuotes
 from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.handlers.temperature_data import Temperatures
+from telegram_bot.handlers.unknown_handler import unknown_handler
 
 c = ConfigHelper()
 
@@ -31,89 +31,94 @@ ERROR_RESPONSE = {"statusCode": 400, "body": json.dumps("Oops, something went wr
 
 
 def webhook(event, context):
-    """
-    Runs the Telegram webhook.
-    """
-
-    application = _configure_telegram()
-
-    setup_handlers(application)
-
-    logger.info("Event: {}".format(event))
-
-    if event.get("httpMethod") == "POST" and event.get("body"):
-        logger.info("Message received")
-        update = telegram.Update.de_json(json.loads(event.get("body")), application.bot)
-        chat_id = update.effective_user
-        text = update.effective_message
-
-        application.process_update(update)
-
-        logger.info(f"chat_id={chat_id}, TEXT:{text}")
-        logger.info("Message sent")
-
-    elif event.get("httpMethod") == "GET" and event.get("path") == "/setWebHook":
-        logger.info("Setting webhook")
-        _set_webhook(event, context, application.bot)
-
-    return OK_RESPONSE
+    return WebHookBuilder().run(event, context)
 
 
-def _configure_telegram():
-    """
-    Configures the bot with a Telegram Token.
+class WebHookBuilder:
+    def run(self, event, context):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self._webhook(event, context))
 
-    Returns a bot instance.
-    """
+    async def _webhook(self, event, context):
+        """
+        Runs the Telegram webhook.
+        """
 
-    TELEGRAM_TOKEN = c.get("telegram", "api_key")
-    if not TELEGRAM_TOKEN:
-        msg = "The TELEGRAM_BOT_API_KEY must be set"
-        logger.error(msg)
-        raise RuntimeError(msg)
+        application = self._create_application()
 
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+        self.setup_handlers(application)
 
-    return application
+        logger.info("Event: {}".format(event))
 
+        if event.get("httpMethod") == "POST" and event.get("body"):
+            logger.info("Message received")
+            update = telegram.Update.de_json(
+                json.loads(event.get("body")), application.bot
+            )
+            chat_id = update.effective_user
+            text = update.effective_message
 
-def _set_webhook(event, context, bot):
-    """
-    Sets the Telegram bot webhook.
-    """
+            async with application:
+                await application.process_update(update)
 
-    logger.info("Got request to set webhook")
-    logger.info(f"EVENT: {event}")
+            logger.info(f"chat_id={chat_id}, TEXT:{text}")
+            logger.info("Message sent")
 
-    url = f"https://{event.get('headers').get('Host')}/"
+        elif event.get("httpMethod") == "GET" and event.get("path") == "/setWebHook":
+            logger.info("Setting webhook")
+            self._set_webhook(event, context, application.bot)
 
-    logger.info(f"Setting webhook url={url}")
-    webhook = bot.set_webhook(url)
-
-    if webhook:
-        logger.info(f"Successfully set webhook")
         return OK_RESPONSE
 
-    return ERROR_RESPONSE
+    @staticmethod
+    def _create_application():
+        """
+        Configures the bot with a Telegram Token.
 
+        Returns a bot instance.
+        """
 
-def setup_handlers(application):
-    GarageDoorHandler().add_handlers(application)
-    CryptoQuotes().add_handlers(application)
-    Temperatures().add_handlers(application)
-    setup_nagios_handlers(application)
+        TELEGRAM_TOKEN = c.get("telegram", "api_key")
+        if not TELEGRAM_TOKEN:
+            msg = "The TELEGRAM_BOT_API_KEY must be set"
+            logger.error(msg)
+            raise RuntimeError(msg)
 
-    # Add handler for messages we aren't handling
-    application.add_handler(
-        MessageHandler(
-            filters.ChatType.PRIVATE & (filters.COMMAND | filters.TEXT),
-            _unknown_handler,
+        application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+        return application
+
+    @staticmethod
+    def _set_webhook(event, context, bot):
+        """
+        Sets the Telegram bot webhook.
+        """
+
+        logger.info("Got request to set webhook")
+        logger.info(f"EVENT: {event}")
+
+        url = f"https://{event.get('headers').get('Host')}/"
+
+        logger.info(f"Setting webhook url={url}")
+        webhook = bot.set_webhook(url)
+
+        if webhook:
+            logger.info(f"Successfully set webhook")
+            return OK_RESPONSE
+
+        return ERROR_RESPONSE
+
+    @staticmethod
+    def setup_handlers(application):
+        GarageDoorHandler().add_handlers(application)
+        CryptoQuotes().add_handlers(application)
+        Temperatures().add_handlers(application)
+        setup_nagios_handlers(application)
+
+        # Add handler for messages we aren't handling
+        application.add_handler(
+            MessageHandler(
+                filters.ChatType.PRIVATE,
+                unknown_handler,
+            )
         )
-    )
-
-
-async def _unknown_handler(update: Update, context: CallbackContext):
-    chat_id = update.effective_user.id
-    logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
-
-    await context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")

@@ -1,7 +1,7 @@
 from telegram.ext import Application
 
 from telegram_bot.config_helper import ConfigHelper
-from telegram_bot.webhook import setup_handlers
+from telegram_bot.webhook import WebHookBuilder
 
 if __name__ == "__main__":
     c = ConfigHelper()
@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    setup_handlers(application)
+    WebHookBuilder.setup_handlers(application)
 
     application.run_polling()
