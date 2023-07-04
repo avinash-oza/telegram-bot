@@ -5,11 +5,11 @@ import telegram
 from telegram import Update
 from telegram.ext import MessageHandler, CallbackContext, Application, filters
 
+from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.garage_door import GarageDoorHandler
 from telegram_bot.handlers.market_quotes import CryptoQuotes
 from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.handlers.temperature_data import Temperatures
-from telegram_bot.config_helper import ConfigHelper
 
 c = ConfigHelper()
 

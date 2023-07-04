@@ -1,7 +1,7 @@
 from telegram.ext import Application
 
 from telegram_bot.config_helper import ConfigHelper
-from webhook import setup_handlers
+from telegram_bot.webhook import setup_handlers
 
 if __name__ == "__main__":
     c = ConfigHelper()
