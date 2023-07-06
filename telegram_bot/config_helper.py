@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 class ConfigHelper:
     class _ConfigHelper:
         def __init__(self):
-            self._s3 = boto3.client('s3')
-            self._env_name = os.environ['env_name'].lower()
-            self._config_bucket = os.environ['config_bucket']
+            self._s3 = boto3.client("s3")
+            self._env_name = os.environ["env_name"].lower()
+            self._config_bucket = os.environ["config_bucket"]
             self.__config = None
             logger.info("Creating class")
 
@@ -22,8 +22,10 @@ class ConfigHelper:
         @property
         def config(self):
             if self.__config is None:
-                config_key = f'telegram-bot/{self._env_name}.json'
-                config_bytes = self._s3.get_object(Bucket=self._config_bucket, Key=config_key)['Body']
+                config_key = f"telegram-bot/{self._env_name}.json"
+                config_bytes = self._s3.get_object(
+                    Bucket=self._config_bucket, Key=config_key
+                )["Body"]
                 self.__config = json.load(config_bytes)
             return self.__config
 
@@ -37,6 +39,6 @@ class ConfigHelper:
         return getattr(self.instance, name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     c = ConfigHelper()
     print(c.config)

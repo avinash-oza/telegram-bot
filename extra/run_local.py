@@ -1,13 +1,18 @@
-from telegram.ext import Updater
-from telegram_bot.webhook import setup_handlers
-from telegram_bot.config_util import ConfigHelper
+from telegram.ext import Application
 
-if __name__ == '__main__':
+from telegram_bot.config_helper import ConfigHelper
+from telegram_bot.webhook import WebHookBuilder
+
+if __name__ == "__main__":
     c = ConfigHelper()
-    TELEGRAM_TOKEN = c.get('telegram', 'api_key')
+    TELEGRAM_TOKEN = c.get("telegram", "api_key")
 
-    updater = Updater(token=TELEGRAM_TOKEN)
-    dispatcher = updater.dispatcher
-    setup_handlers(dispatcher)
+    if not TELEGRAM_TOKEN:
+        msg = "The TELEGRAM_BOT_API_KEY must be set"
+        raise RuntimeError(msg)
 
-    updater.start_polling()
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    WebHookBuilder.setup_handlers(application)
+
+    application.run_polling()
