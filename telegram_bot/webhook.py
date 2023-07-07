@@ -1,8 +1,9 @@
+import asyncio
 import json
 import logging
-import asyncio
+
 import telegram
-from telegram.ext import MessageHandler, Application, filters
+from telegram.ext import Application, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.garage_door import GarageDoorHandler
