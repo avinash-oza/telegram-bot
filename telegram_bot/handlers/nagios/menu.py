@@ -4,8 +4,7 @@ import re
 
 import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext, MessageHandler, filters
-from telegram.ext import CallbackQueryHandler
+from telegram.ext import CallbackContext, CallbackQueryHandler, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 
