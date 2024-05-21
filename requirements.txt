@@ -2,4 +2,4 @@ arrow==1.2.3
 boto3==1.26.164
 python-telegram-bot==20
 httpx==0.23.3
-requests==2.31.0
+requests==2.32.0
