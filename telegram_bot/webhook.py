@@ -6,8 +6,8 @@ import telegram
 from telegram.ext import Application, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
+from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
 from telegram_bot.handlers.garage_door import GarageDoorHandler
-from telegram_bot.handlers.market_quotes import CryptoQuotes
 from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.handlers.temperature_data import Temperatures
 from telegram_bot.handlers.unknown_handler import unknown_handler
@@ -112,7 +112,7 @@ class WebHookBuilder:
     @staticmethod
     def setup_handlers(application):
         GarageDoorHandler().add_handlers(application)
-        CryptoQuotes().add_handlers(application)
+        CryptoQuotesHandler().add_handlers(application)
         Temperatures().add_handlers(application)
         setup_nagios_handlers(application)
 

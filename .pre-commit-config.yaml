@@ -15,8 +15,8 @@ repos:
       - id: isort
         name: isort
         args:
-          - --diff
-          - --check
+#          - --diff
+#          - --check
           - --profile
           - black
 

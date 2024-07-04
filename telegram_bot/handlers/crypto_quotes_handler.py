@@ -13,7 +13,7 @@ c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
-class CryptoQuotes(HandlerBase):
+class CryptoQuotesHandler(HandlerBase):
     def _get_with_timeout(self, url, timeout=5, headers=None, params=None):
         """
         Gets data with a timeout. When there is no reply, and empty dict is returned
