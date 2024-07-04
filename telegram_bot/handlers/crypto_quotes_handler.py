@@ -87,13 +87,7 @@ class CryptoQuotesHandler(HandlerBase):
         return msg
 
     def _get_coingecko_data(self):
-        pairs = [
-            "ethereum-name-service",
-            "ethereum",
-            "bitcoin",
-            "district0x",
-            "cardano",
-        ]
+        pairs = c.config["crypto"]["coingecko"]["pairs"]
         resp = self._get_with_timeout(
             "https://api.coingecko.com/api/v3/simple/price",
             params={"ids": ",".join(pairs), "vs_currencies": "USD"},
