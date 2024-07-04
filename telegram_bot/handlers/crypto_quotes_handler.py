@@ -32,18 +32,6 @@ class CryptoQuotesHandler(HandlerBase):
         else:
             return result
 
-    def _get_cryptowatch_quotes(self):
-        resp = self._get_with_timeout("https://api.cryptowat.ch/markets/prices")
-        text = """"""
-        for currency, exchanges in c.config["crypto"]["prices"].items():
-            ccy_text = f"""**{currency}**:\n"""
-            for exchange in exchanges:
-                exchange_desc = exchange.split(":")[1]  # keep only the exchange name
-                ccy_text += f"\t{exchange_desc}: {resp['result'][exchange]}\n"
-            text += ccy_text
-        text += f"CW API Credits: {resp['allowance']['remaining']}\n---\n"
-        return text
-
     def _get_cmc_data(self):
         rest_api_id = c.get("crypto", "cmc_rest_api_id")
 
@@ -98,12 +86,30 @@ class CryptoQuotesHandler(HandlerBase):
 
         return msg
 
+    def _get_coingecko_data(self):
+        pairs = [
+            "ethereum-name-service",
+            "ethereum",
+            "bitcoin",
+            "district0x",
+            "cardano",
+        ]
+        resp = self._get_with_timeout(
+            "https://api.coingecko.com/api/v3/simple/price",
+            params={"ids": ",".join(pairs), "vs_currencies": "USD"},
+        )
+        text = """"""
+        for ccy, ccy_dict in resp.items():
+            ccy_price = ccy_dict["usd"]
+            text += f"{ccy}: {ccy_price}\n"
+        return text
+
     def _build_response(self):
         key_func_mapping = {
-            "CRYPTOWATCH": self._get_cryptowatch_quotes,
+            "COINGECKO": self._get_coingecko_data,
             "COINMARKETCAP": self._get_cmc_data,
         }
-        t = arrow.get(tzinfo="America/New_York").strftime("%Y-%M-%d %H:%m:%S%p")
+        t = arrow.get(tzinfo="America/New_York").strftime("%Y-%m-%d %H:%M:%S%p")
         string_to_send = f"Time: {t}\n"
 
         for name, call_func in key_func_mapping.items():
