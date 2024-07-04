@@ -3,9 +3,8 @@ import re
 
 import arrow
 import requests
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Update
-from telegram.ext import CallbackContext, MessageHandler, filters, CallbackQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackContext, CallbackQueryHandler, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
