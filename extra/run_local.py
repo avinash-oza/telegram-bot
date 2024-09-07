@@ -8,7 +8,7 @@ if __name__ == "__main__":
     TELEGRAM_TOKEN = c.get("telegram", "api_key")
 
     if not TELEGRAM_TOKEN:
-        msg = "The TELEGRAM_BOT_API_KEY must be set"
+        msg = "The TELEGRAM_BOT_API_KEY must be set!"
         raise RuntimeError(msg)
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
