@@ -5,7 +5,8 @@ on:
     branches:
       - master
     paths:
-      - '**.py' # Change to the file extension of the language that you are using.
+      - '**'
+      # - '**.py' # Change to the file extension of the language that you are using.
 
 jobs:
   deploy:
@@ -60,7 +61,7 @@ jobs:
         zip -r ../$NEW_PACKAGE_ZIP_NAME .
         cd ..
         # Upload the updated zip to S3
-        aws s3 cp $NEW_PACKAGE_ZIP_NAME.zip s3://$S3_BUCKET/$S3_KEY
+        aws s3 cp $NEW_PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
         # Update Lambda function code
         aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET --s3-key $S3_KEY
         # Cleanup
