@@ -52,7 +52,7 @@ class WebHookBuilder:
         logger.info("Event: {}".format(event))
 
         if event.get("httpMethod") == "POST" and event.get("body"):
-            logger.info("Message received")
+            logger.info("Processing received message")
             update = telegram.Update.de_json(
                 json.loads(event.get("body")), application.bot
             )

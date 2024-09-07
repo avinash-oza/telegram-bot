@@ -5,8 +5,7 @@ on:
     branches:
       - master
     paths:
-      - '**'
-      # - '**.py' # Change to the file extension of the language that you are using.
+       - '**.py'
 
 jobs:
   deploy:
