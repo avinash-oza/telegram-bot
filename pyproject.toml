@@ -1,0 +1,12 @@
+[project]
+authors = "Avi"
+description = "TBD"
+name = "telegram-bot"
+platforms = ['noarch']
+license="TBD"
+version = "0.01"
+requires-python = ">= 3.10"
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ['setuptools']
