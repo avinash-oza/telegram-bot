@@ -1,12 +1,27 @@
 [project]
-authors = "Avi"
-description = "TBD"
+authors = [{name = "avi", email = "avioza@gmail.com"}]
+dependencies = []
+description = "Add a short description here"
 name = "telegram-bot"
-platforms = ['noarch']
-license="TBD"
-version = "0.01"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
+version = "0.1.0"
 
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ['setuptools']
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tool.pixi.pypi-dependencies]
+telegram_bot = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+arrow = ">=1.3.0,<2"
+boto3 = ">=1.35.49,<2"
+python-telegram-bot = "21.5.*"
+requests = ">=2.32.3,<3"
+python = "3.12.*"
