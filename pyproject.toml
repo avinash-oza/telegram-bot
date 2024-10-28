@@ -20,11 +20,12 @@ platforms = ["win-64"]
 [tool.pixi.pypi-dependencies]
 telegram_bot = { path = ".", editable = true }
 
-[tool.pixi.tasks]
-
 [tool.pixi.environments]
 default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.dependencies]
 python = "==3.12"
+
+[tool.pixi.tasks]
+run-local = { cmd = "env_name=dev python run_local.py", cwd = "extra" }
