@@ -15,7 +15,7 @@ requires = ["hatchling"]
 
 [tool.pixi.project]
 channels = ["conda-forge"]
-platforms = ["win-64"]
+platforms = ["win-64", "linux-64"]
 
 [tool.pixi.pypi-dependencies]
 telegram_bot = { path = ".", editable = true }
