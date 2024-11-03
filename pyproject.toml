@@ -31,6 +31,7 @@ pixi-pycharm = ">=0.0.8,<0.0.9"
 [tool.pixi.tasks]
 run-local = { cmd = "env_name=dev python run_local.py", cwd = "extra" }
 build = "pixi run -e dev python -m build"
+build-layer = "pip install --target ./package_layer dist/telegram_bot-0.1.0-py3-none-any.whl; rm -Rvf ./package_layer/telegram_bot*"
 package = "powershell 'Get-ChildItem -Path ./package | Compress-Archive -Force -DestinationPath telegram-bot.zip'"
 
 [tool.pixi.feature.dev.dependencies]
