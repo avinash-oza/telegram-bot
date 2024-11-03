@@ -1,0 +1,37 @@
+[project]
+authors = [{name = "avi", email = "avioza@gmail.com"}]
+dependencies = [ "boto3>=1.35.49,<2", "arrow==1.3.0", "python-telegram-bot==21.5", "requests>=2.32.3,<3"]
+description = "Add a short description here"
+name = "telegram-bot"
+requires-python = ">= 3.11"
+version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["build>=1.2.2.post1,<2", "awscli>=1.35.15,<2", "black>=24.10.0,<25"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[tool.pixi.pypi-dependencies]
+telegram_bot = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.dependencies]
+python = "==3.12"
+pixi-pycharm = ">=0.0.8,<0.0.9"
+
+[tool.pixi.tasks]
+run-local = { cmd = "env_name=dev python run_local.py", cwd = "extra" }
+build = "pixi run -e dev python -m build"
+package = "powershell 'Get-ChildItem -Path ./package | Compress-Archive -Force -DestinationPath telegram-bot.zip'"
+
+[tool.pixi.feature.dev.dependencies]
+pre-commit = ">=4.0.1,<5"
