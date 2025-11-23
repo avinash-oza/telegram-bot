@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - master
-    paths:
-       - '**.py'
+#    paths:
+#       - '**.py'
 
 jobs:
   deploy:
@@ -13,12 +13,12 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
       with:
         fetch-depth: 2 # To fetch the current commit and its parent (so we can compare)
 
     - name: Setup AWS CLI
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v5
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -31,7 +31,7 @@ jobs:
     - name: Deploy Modified Files
       run: |
         # Constants
-        S3_BUCKET=temp-deployments-sjjofz
+        S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}
         S3_KEY=packages/telegram-bot.zip
         EXISTING_PACKAGE_ZIP_NAME=existing_telegram_bot.zip
         NEW_PACKAGE_ZIP_NAME=new_telegram_bot.zip
