@@ -49,8 +49,10 @@ jobs:
         LAMBDA_FUNCTION_NAME=telegramBot
         
         cd package && zip -r ../$NEW_PACKAGE_ZIP_NAME .
+        
+        ls -al 
         # Upload the updated zip to S3
-        aws s3 cp $NEW_PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
+        aws s3 cp ../$NEW_PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
         # Update Lambda function code
 #        aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET --s3-key $S3_KEY
 
