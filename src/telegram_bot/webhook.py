@@ -3,14 +3,15 @@ import json
 import logging
 
 import telegram
-from telegram.ext import Application, MessageHandler, filters
+from telegram.ext import Application
+from telegram.ext import MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
 from telegram_bot.handlers.garage_door import GarageDoorHandler
+from telegram_bot.handlers.misc_handlers import unknown_handler, VersionHandler
 from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.handlers.temperature_data import Temperatures
-from telegram_bot.handlers.unknown_handler import unknown_handler
 
 c = ConfigHelper()
 
@@ -114,6 +115,7 @@ class WebHookBuilder:
         GarageDoorHandler().add_handlers(application)
         CryptoQuotesHandler().add_handlers(application)
         Temperatures().add_handlers(application)
+        VersionHandler().add_handlers(application)
         setup_nagios_handlers(application)
 
         # Add handler for messages we aren't handling
