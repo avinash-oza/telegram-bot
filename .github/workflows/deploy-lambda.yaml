@@ -55,6 +55,7 @@ jobs:
       run: |
         LAMBDA_FUNCTION_NAME=${{ vars.LAMBDA_FUNCTION_NAME }}
         S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+        PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
         S3_KEY=packages/$PACKAGE_ZIP_NAME
         
         # Update Lambda function code
