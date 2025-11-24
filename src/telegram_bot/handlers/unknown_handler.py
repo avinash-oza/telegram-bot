@@ -10,4 +10,4 @@ async def unknown_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_user.id
     logger.warning("UNHANDLED MESSAGE {}".format(update.to_dict()))
 
-    await context.bot.sendMessage(chat_id=chat_id, text="Did not understand message")
+    await context.bot.sendMessage(chat_id=chat_id, text="Did not understand message.")
