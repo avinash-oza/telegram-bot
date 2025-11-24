@@ -58,5 +58,5 @@ jobs:
         S3_KEY=packages/$PACKAGE_ZIP_NAME
         
         # Update Lambda function code
-        aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET_NAME --s3-key $S3_KEY
+        aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET_NAME --s3-key $S3_KEY >> /dev/null
 
