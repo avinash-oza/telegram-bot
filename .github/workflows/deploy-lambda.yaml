@@ -45,16 +45,16 @@ jobs:
         S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}
         PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
         S3_KEY=packages/$PACKAGE_ZIP_NAME
-        LAMBDA_FUNCTION_NAME=telegramBot
         
         cd package && zip -r ../$PACKAGE_ZIP_NAME .
-        zip -r ../$PACKAGE_ZIP_NAME .
+        zip -q -r ../$PACKAGE_ZIP_NAME .
         # Upload the updated zip to S3
         aws s3 cp ../$PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
 
     - name: deploy lambda function
       run: |
         S3_KEY=packages/$PACKAGE_ZIP_NAME
+        LAMBDA_FUNCTION_NAME=${{ vars.LAMBDA_FUNCTION_NAME }}
         # Update Lambda function code
         aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET --s3-key $S3_KEY
 
