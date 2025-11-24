@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - master
-#    paths:
-#       - '**.py'
+    paths:
+       - '**.py'
 
 jobs:
   deploy:
@@ -29,41 +29,35 @@ jobs:
       run: |
         echo "List of changed files:"
         echo $(git diff --name-only HEAD^ HEAD)
-    - name: Deploy Modified Files
+
+    - name: build package with uv
+      uses: astral-sh/setup-uv@v7
+
+    - run: |
+        uv build
+        # construct env with package in it
+        # TODO: FIX PACKAGE VERSION
+        uv pip install dist/telegram_bot-0.1.0-py3-none-any.whl --target ./package
+
+    - name: build package for deployment
       run: |
         # Constants
         S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}
-        S3_KEY=packages/telegram-bot.zip
-        EXISTING_PACKAGE_ZIP_NAME=existing_telegram_bot.zip
-        NEW_PACKAGE_ZIP_NAME=new_telegram_bot.zip
-        LAMBDA_FUNCTION_NAME=telegramBot
-
-        # Download the existing zip from S3
-        aws s3 cp s3://$S3_BUCKET/$S3_KEY $EXISTING_PACKAGE_ZIP_NAME
-        # Unzip the existing package
-        unzip $EXISTING_PACKAGE_ZIP_NAME -d lambda_env
-        # Copy only the modified .py files from the commit into the unzipped directory
-        # This will maintain their directory structure.
-        for file in $(git diff-tree --no-commit-id --name-only -r HEAD); do
-            if [[ $file == *.py ]]; then
-                # Create the directory structure in lambda_env for the modified file
-                mkdir -p lambda_env/$(dirname $file)
-                # Copy the modified file
-                cp $file lambda_env/$file
-                # Print what you've done with the file
-                echo "Copied $file to lambda_env/$file"
-                echo "Content of $file after copying:"
-                cat lambda_env/$file
-            fi
-        done
-        # Zip the directory again
-        cd lambda_env
-        zip -r ../$NEW_PACKAGE_ZIP_NAME .
-        cd ..
+        PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
+        S3_KEY=packages/$PACKAGE_ZIP_NAME
+        
+        cd package && zip -r ../$PACKAGE_ZIP_NAME .
+        zip -q -r ../$PACKAGE_ZIP_NAME .
         # Upload the updated zip to S3
-        aws s3 cp $NEW_PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
+        aws s3 cp ../$PACKAGE_ZIP_NAME s3://$S3_BUCKET/$S3_KEY
+
+    - name: deploy lambda function
+      run: |
+        LAMBDA_FUNCTION_NAME=${{ vars.LAMBDA_FUNCTION_NAME }}
+        S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+        PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
+        S3_KEY=packages/$PACKAGE_ZIP_NAME
+        
         # Update Lambda function code
-        aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET --s3-key $S3_KEY
-        # Cleanup
-        rm -r lambda_env
-        rm $EXISTING_PACKAGE_ZIP_NAME $NEW_PACKAGE_ZIP_NAME
+        aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --s3-bucket $S3_BUCKET_NAME --s3-key $S3_KEY
+
