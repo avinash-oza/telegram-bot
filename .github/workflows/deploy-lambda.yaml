@@ -1,12 +1,11 @@
 name: Deploy Telegram Bot
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - master
-#    paths:
-#       - '**.py'
+    paths:
+       - '**.py'
 
 jobs:
   deploy:
