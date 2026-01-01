@@ -26,7 +26,6 @@ tag_format = "v{version}"
 add_partial_tags = false
 version_toml = ["pyproject.toml:project.version"]
 
-
 [tool.semantic_release.branches.main]
 match = "^(main|master)$"
 prerelease_token = "rc"
