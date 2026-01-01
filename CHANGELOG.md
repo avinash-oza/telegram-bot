@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-01-01)
+
+### Features
+
+- Try another version bump
+  ([`9f92e2d`](https://github.com/avinash-oza/telegram-bot/commit/9f92e2d6662ac1f22247177c09bccc3ce4ccf3bf))
+
+
 ## v1.0.1 (2026-01-01)
 
 ### Bug Fixes
