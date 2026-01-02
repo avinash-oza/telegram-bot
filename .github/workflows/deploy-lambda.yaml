@@ -9,11 +9,8 @@ on:
        - '**.py'
 
 jobs:
-  release:
+  release-and-deploy:
     runs-on: ubuntu-latest
-
-    outputs:
-      current-sha: ${{ steps.current-release-sha.current-sha }}
 
     steps:
       - name: Setup | Checkout Repository on Release Branch
@@ -34,20 +31,16 @@ jobs:
           git_committer_name: "github-actions"
           git_committer_email: "actions@users.noreply.github.com"
 
-      - name: Get current sha post release
-        id: current-release-sha
-        shell: bash
-        run: |
-          git pull
-          CURRENT_SHA=$(git rev-parse HEAD)
-          echo "current-sha=$CURRENT_SHA"
-          echo "current-sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+#      - name: Get current sha post release
+#        id: current-release-sha
+#        shell: bash
+#        run: |
+#          git pull
+#          CURRENT_SHA=$(git rev-parse HEAD)
+#          echo "current-sha=$CURRENT_SHA"
+#          echo "current-sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - name: initialize
+      - name: initialize for deployment
         id: init
         run: |
           # Constants
@@ -60,11 +53,6 @@ jobs:
           echo "package_zip_name=${{ vars.PACKAGE_FILE_NAME }}" >> $GITHUB_OUTPUT
           echo "s3_key=$S3_KEY" >> $GITHUB_OUTPUT
           echo "lambda_function_name=$LAMBDA_FUNCTION_NAME" >> $GITHUB_OUTPUT
-
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.release.outputs.current-sha }}
 
       - name: Setup AWS CLI
         uses: aws-actions/configure-aws-credentials@v5
