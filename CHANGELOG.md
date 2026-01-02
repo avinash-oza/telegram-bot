@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-01-02)
+
+### Chores
+
+- Restore original build filter
+  ([`f743cfc`](https://github.com/avinash-oza/telegram-bot/commit/f743cfc15a14199f2ae67823f1b308dc3b9e5632))
+
+### Features
+
+- Print package size and silence zip
+  ([`a7b28e0`](https://github.com/avinash-oza/telegram-bot/commit/a7b28e0d9d2b57a67dc7d8017eaeb02eadcd1f7d))
+
+
 ## v1.3.0 (2026-01-02)
 
 ### Features
