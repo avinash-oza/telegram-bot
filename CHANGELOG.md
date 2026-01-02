@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.5.0 (2026-01-02)
+
+### Features
+
+- Refer to right dir
+  ([`ac4d9ed`](https://github.com/avinash-oza/telegram-bot/commit/ac4d9ed5d0a94c906719de79005d0e95efbf9f0c))
+
+
 ## v1.4.0 (2026-01-02)
 
 ### Chores
