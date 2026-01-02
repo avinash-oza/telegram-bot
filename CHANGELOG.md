@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.6.0 (2026-01-02)
+
+### Features
+
+- Refer to right dir
+  ([`81a3c6b`](https://github.com/avinash-oza/telegram-bot/commit/81a3c6b4f970c870e970015f93974b0906985929))
+
+- Remove refs to ConfigHelper
+  ([`3b68d33`](https://github.com/avinash-oza/telegram-bot/commit/3b68d339b37595a9f4c01ea226cf059baf46b8c9))
+
+
 ## v1.5.0 (2026-01-02)
 
 ### Features
