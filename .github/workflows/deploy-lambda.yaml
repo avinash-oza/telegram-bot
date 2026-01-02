@@ -82,7 +82,7 @@ jobs:
           s3://${{ steps.init.outputs.s3_bucket_name }}/${{ steps.init.outputs.s3_key }}
 
           echo "Size of package is:"
-          ls -lah ${{ steps.init.outputs.package_zip_name }}
+          ls -lah ../${{ steps.init.outputs.package_zip_name }}
 
       - name: deploy lambda function
         run: |
