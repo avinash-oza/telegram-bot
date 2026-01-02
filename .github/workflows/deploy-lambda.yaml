@@ -38,7 +38,8 @@ jobs:
         id: current-release-sha
         shell: bash
         run: |
-          echo "current-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT"
+          CURRENT_SHA=$(git rev-parse HEAD)
+          echo "current-sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
 
   deploy:
     runs-on: ubuntu-latest
