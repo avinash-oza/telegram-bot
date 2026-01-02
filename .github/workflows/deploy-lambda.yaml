@@ -38,7 +38,9 @@ jobs:
         id: current-release-sha
         shell: bash
         run: |
+          git pull
           CURRENT_SHA=$(git rev-parse HEAD)
+          echo "current-sha=$CURRENT_SHA"
           echo "current-sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
 
   deploy:
