@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.10.0 (2026-01-02)
+
+### Features
+
+- Run the whole workflow in one shot
+  ([`b816865`](https://github.com/avinash-oza/telegram-bot/commit/b8168659476587c00ff6b5ecfa03fbcae62791f1))
+
+
 ## v1.9.0 (2026-01-02)
 
 ### Features

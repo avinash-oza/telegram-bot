@@ -9,7 +9,7 @@ dependencies = [
 description = "Add a short description here"
 name = "telegram-bot"
 requires-python = ">= 3.11"
-version = "1.9.0"
+version = "1.10.0"
 
 [build-system]
 build-backend = "hatchling.build"
