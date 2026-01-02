@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.9.0 (2026-01-02)
+
+### Features
+
+- Print the sha post pull
+  ([`0464c0a`](https://github.com/avinash-oza/telegram-bot/commit/0464c0aca41b178ce6b20a18cb6b590eafff0e2f))
+
+
 ## v1.8.0 (2026-01-02)
 
 ### Features
