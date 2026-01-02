@@ -32,58 +32,60 @@ jobs:
           git_committer_name: "github-actions"
           git_committer_email: "actions@users.noreply.github.com"
 
-#  deploy:
-#    runs-on: ubuntu-latest
-#    needs: release
-#    steps:
-#      - name: initialize
-#        id: init
-#        run: |
-#          # Constants
-#          S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}
-#          PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
-#          S3_KEY=packages/$PACKAGE_ZIP_NAME
-#          LAMBDA_FUNCTION_NAME=${{ vars.LAMBDA_FUNCTION_NAME }}
-#
-#          echo "s3_bucket_name=${{ secrets.S3_BUCKET_NAME }}" >> $GITHUB_OUTPUT
-#          echo "package_zip_name=${{ vars.PACKAGE_FILE_NAME }}" >> $GITHUB_OUTPUT
-#          echo "s3_key=$S3_KEY" >> $GITHUB_OUTPUT
-#          echo "lambda_function_name=$LAMBDA_FUNCTION_NAME" >> $GITHUB_OUTPUT
-#
-#      - name: Checkout Repository
-#        uses: actions/checkout@v6
-#
-#      - name: Setup AWS CLI
-#        uses: aws-actions/configure-aws-credentials@v5
-#        with:
-#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#          aws-region: us-east-1
-#
-#      - name: build package with uv
-#        uses: astral-sh/setup-uv@v7
-#        with:
-#          enable-cache: true
-#
-#      - run: |
-#          uv build
-#          # construct env with package in it
-#          # TODO: FIX PACKAGE VERSION
-#          uv pip install dist/telegram_bot-0.1.0-py3-none-any.whl --target ./package
-#
-#      - name: build package for deployment
-#        run: |
-#          cd package && zip -r ../${{ steps.init.outputs.package_zip_name }} .
-#          zip -q -r ../${{ steps.init.outputs.package_zip_name }} .
-#          # Upload the updated zip to S3
-#          aws s3 cp ../${{ steps.init.outputs.package_zip_name }} \
-#          s3://${{ steps.init.outputs.s3_bucket_name }}/${{ steps.init.outputs.s3_key }}
-#
-#      - name: deploy lambda function
-#        run: |
-#          # Update Lambda function code
-#          aws lambda update-function-code \
-#          --function-name ${{ steps.init.outputs.lambda_function_name }} \
-#          --s3-bucket ${{ steps.init.outputs.s3_bucket_name }} \
-#          --s3-key ${{ steps.init.outputs.s3_key }} >> /dev/null
-#
+  deploy:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: initialize
+        id: init
+        run: |
+          # Constants
+          S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}
+          PACKAGE_ZIP_NAME=${{ vars.PACKAGE_FILE_NAME }}
+          S3_KEY=packages/$PACKAGE_ZIP_NAME
+          LAMBDA_FUNCTION_NAME=${{ vars.LAMBDA_FUNCTION_NAME }}
+
+          echo "s3_bucket_name=${{ secrets.S3_BUCKET_NAME }}" >> $GITHUB_OUTPUT
+          echo "package_zip_name=${{ vars.PACKAGE_FILE_NAME }}" >> $GITHUB_OUTPUT
+          echo "s3_key=$S3_KEY" >> $GITHUB_OUTPUT
+          echo "lambda_function_name=$LAMBDA_FUNCTION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup AWS CLI
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: build package with uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: |
+          uv build --wheel
+          PACKAGE_VERSION=$(uv version --short)
+          echo "Package version is $PACKAGE_VERSION"
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+          # construct env with package in it
+          uv pip install dist/telegram_bot-$PACKAGE_VERSION-py3-none-any.whl --target ./package
+
+      - name: build package for deployment
+        run: |
+          cd package && zip -r ../${{ steps.init.outputs.package_zip_name }} .
+          zip -q -r ../${{ steps.init.outputs.package_zip_name }} .
+          # Upload the updated zip to S3
+          aws s3 cp ../${{ steps.init.outputs.package_zip_name }} \
+          s3://${{ steps.init.outputs.s3_bucket_name }}/${{ steps.init.outputs.s3_key }}
+
+      - name: deploy lambda function
+        run: |
+          # Update Lambda function code
+          aws lambda update-function-code \
+          --function-name ${{ steps.init.outputs.lambda_function_name }} \
+          --s3-bucket ${{ steps.init.outputs.s3_bucket_name }} \
+          --s3-key ${{ steps.init.outputs.s3_key }} >> /dev/null
