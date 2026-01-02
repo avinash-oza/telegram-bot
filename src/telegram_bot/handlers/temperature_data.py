@@ -17,14 +17,16 @@ logger = logging.getLogger(__name__)
 class Temperatures(HandlerBase):
     def get_temperatures(self, locations="ALL"):
         if locations == "ALL":
-            locations = c.get("temperature", "locations")
+            locations = self._config_helper.get("temperature", "locations")
 
         dt_format = "%Y-%m-%d %I:%M:%S %p"
         current_time = arrow.now().strftime(dt_format)
 
         s = requests.Session()
-        s.headers.update({"X-Api-Key": c.get("temperature", "api_key")})
-        url = c.get("temperature", "url")
+        s.headers.update(
+            {"X-Api-Key": self._config_helper.get("temperature", "api_key")}
+        )
+        url = self._config_helper.get("temperature", "url")
 
         resp_text = f"""Time: {current_time}\n"""
         for loc in locations:
@@ -52,7 +54,7 @@ class Temperatures(HandlerBase):
 
     def get_temperature_chart(self):
         # return the latest temperature chart url
-        params = c.config["temperature"]["chart"]
+        params = self._config_helper.config["temperature"]["chart"]
         bucket = params["bucket_name"]
         key = params["key"]
         s3 = boto3.client("s3")

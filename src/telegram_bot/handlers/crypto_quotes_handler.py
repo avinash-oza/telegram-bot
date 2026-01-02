@@ -6,10 +6,8 @@ import requests
 from telegram import Update
 from telegram.ext import CallbackContext, MessageHandler, filters
 
-from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
 
-c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +31,7 @@ class CryptoQuotesHandler(HandlerBase):
             return result
 
     def _get_cmc_data(self):
-        rest_api_id = c.get("crypto", "cmc_rest_api_id")
+        rest_api_id = self._config_helper.get("crypto", "cmc_rest_api_id")
 
         msg = """"""
         cmc_headers = {"X-CMC_PRO_API_KEY": rest_api_id}
@@ -55,7 +53,7 @@ class CryptoQuotesHandler(HandlerBase):
 
         # Get volume of ETH and BTC
         url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-        id_to_slug = c.config["crypto"]["cmc"]["id_slug_mapping"]
+        id_to_slug = self._config_helper.config["crypto"]["cmc"]["id_slug_mapping"]
         params = {"id": ",".join(id_to_slug.keys())}
         cmc_result = self._get_with_timeout(url, headers=cmc_headers, params=params)
         if not result:
@@ -87,7 +85,7 @@ class CryptoQuotesHandler(HandlerBase):
         return msg
 
     def _get_coingecko_data(self):
-        pairs = c.config["crypto"]["coingecko"]["pairs"]
+        pairs = self._config_helper.config["crypto"]["coingecko"]["pairs"]
         resp = self._get_with_timeout(
             "https://api.coingecko.com/api/v3/simple/price",
             params={"ids": ",".join(pairs), "vs_currencies": "USD"},

@@ -3,17 +3,16 @@ import json
 import logging
 
 import telegram
-from telegram.ext import Application
-from telegram.ext import MessageHandler, filters
+from telegram.ext import Application, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
 from telegram_bot.handlers.garage_door import GarageDoorHandler
-from telegram_bot.handlers.misc_handlers import unknown_handler, VersionHandler
+from telegram_bot.handlers.misc_handlers import VersionHandler, unknown_handler
 from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
 from telegram_bot.handlers.temperature_data import Temperatures
 
-c = ConfigHelper()
+config_helper = ConfigHelper()
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
@@ -80,7 +79,7 @@ class WebHookBuilder:
         Returns a bot instance.
         """
 
-        TELEGRAM_TOKEN = c.get("telegram", "api_key")
+        TELEGRAM_TOKEN = config_helper.get("telegram", "api_key")
         if not TELEGRAM_TOKEN:
             msg = "The TELEGRAM_BOT_API_KEY must be set"
             logger.error(msg)
@@ -112,10 +111,10 @@ class WebHookBuilder:
 
     @staticmethod
     def setup_handlers(application):
-        GarageDoorHandler().add_handlers(application)
-        CryptoQuotesHandler().add_handlers(application)
-        Temperatures().add_handlers(application)
-        VersionHandler().add_handlers(application)
+        GarageDoorHandler(config_helper).add_handlers(application)
+        CryptoQuotesHandler(config_helper).add_handlers(application)
+        Temperatures(config_helper).add_handlers(application)
+        VersionHandler(config_helper).add_handlers(application)
         setup_nagios_handlers(application)
 
         # Add handler for messages we aren't handling
