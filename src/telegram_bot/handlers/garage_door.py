@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class GarageDoorHandler(HandlerBase):
-    def __init__(self):
-        self._garage_config = c.config["garage"]
+    def __init__(self, config_helper):
+        self._garage_config = config_helper.config["garage"]
+        super().__init__(config_helper)
 
     def get_garage_position(self):
         # Returns whether the garage is open or closed
@@ -165,7 +166,7 @@ class GarageDoorHandler(HandlerBase):
                 )
             )
 
-            bot_admin = c.config["telegram"]["bot_admin"]
+            bot_admin = self._config_helper.config["telegram"]["bot_admin"]
             if update.effective_user.id != bot_admin:
                 await context.bot.sendMessage(
                     chat_id=bot_admin,

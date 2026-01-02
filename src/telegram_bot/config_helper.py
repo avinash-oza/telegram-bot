@@ -37,8 +37,3 @@ class ConfigHelper:
 
     def __getattr__(self, name):
         return getattr(self.instance, name)
-
-
-if __name__ == "__main__":
-    c = ConfigHelper()
-    print(c.config)
