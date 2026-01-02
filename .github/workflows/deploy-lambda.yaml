@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      current-sha: ${{ steps.current-release-sha.current-sha
+      current-sha: ${{ steps.current-release-sha.current-sha }}
 
     steps:
       - name: Setup | Checkout Repository on Release Branch
