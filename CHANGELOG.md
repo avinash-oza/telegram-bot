@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.7.0 (2026-01-02)
+
+### Features
+
+- Use the current sha when checking out
+  ([`43da883`](https://github.com/avinash-oza/telegram-bot/commit/43da883f57a98bd5bda89e82b8b84ffb8020723b))
+
+- Use the current sha when checking out
+  ([`72f0b7b`](https://github.com/avinash-oza/telegram-bot/commit/72f0b7b1c75ce24882b1916b5bb56fa53fc06f0a))
+
+
 ## v1.6.0 (2026-01-02)
 
 ### Features
