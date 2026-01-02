@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-01-02)
+
+### Features
+
+- Add version import code and update lock file
+  ([`6c1c780`](https://github.com/avinash-oza/telegram-bot/commit/6c1c780f649afac77670ef80e6eb8529c8a07b6c))
+
+
 ## v1.1.0 (2026-01-01)
 
 ### Features
