@@ -12,6 +12,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    outputs:
+      current-sha: ${{ steps.current-release-sha.current-sha
+
     steps:
       - name: Setup | Checkout Repository on Release Branch
         uses: actions/checkout@v4
@@ -30,6 +33,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: "github-actions"
           git_committer_email: "actions@users.noreply.github.com"
+
+      - name: Get current sha post release
+        id: current-release-sha
+        shell: bash
+        run: |
+          echo "current-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT"
 
   deploy:
     runs-on: ubuntu-latest
@@ -51,6 +60,8 @@ jobs:
 
       - name: Checkout Repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.current-sha }}
 
       - name: Setup AWS CLI
         uses: aws-actions/configure-aws-credentials@v5
