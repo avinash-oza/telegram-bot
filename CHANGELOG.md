@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-01-02)
+
+### Features
+
+- Try full build/deploy
+  ([`dd6c5e9`](https://github.com/avinash-oza/telegram-bot/commit/dd6c5e94e9a419eb508abf2028238a1f7c69de55))
+
+
 ## v1.2.0 (2026-01-02)
 
 ### Features
