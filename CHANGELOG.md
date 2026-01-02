@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.8.0 (2026-01-02)
+
+### Features
+
+- Make variable
+  ([`6ef0df5`](https://github.com/avinash-oza/telegram-bot/commit/6ef0df5a9c3f1122cc260443568a935e6b40485e))
+
+
 ## v1.7.0 (2026-01-02)
 
 ### Features
