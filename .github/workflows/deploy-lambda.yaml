@@ -75,11 +75,14 @@ jobs:
 
       - name: build package for deployment
         run: |
-          cd package && zip -r ../${{ steps.init.outputs.package_zip_name }} .
+          cd package && zip -q -r ../${{ steps.init.outputs.package_zip_name }} .
           zip -q -r ../${{ steps.init.outputs.package_zip_name }} .
           # Upload the updated zip to S3
           aws s3 cp ../${{ steps.init.outputs.package_zip_name }} \
           s3://${{ steps.init.outputs.s3_bucket_name }}/${{ steps.init.outputs.s3_key }}
+
+          echo "Size of package is:"
+          ls -lah ${{ steps.init.outputs.package_zip_name }}
 
       - name: deploy lambda function
         run: |
