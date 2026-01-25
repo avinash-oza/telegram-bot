@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.11.0 (2026-01-25)
+
+### Features
+
+- Switch to using dotenv for local dev
+  ([`eeabc61`](https://github.com/avinash-oza/telegram-bot/commit/eeabc61d5f5e1ab876ccceab169c5e56624190ef))
+
+
 ## v1.10.0 (2026-01-02)
 
 ### Features
