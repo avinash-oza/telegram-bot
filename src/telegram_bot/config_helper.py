@@ -3,11 +3,13 @@ import logging
 import os
 
 import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
-#
 class ConfigHelper:
     class _ConfigHelper:
         def __init__(self):
