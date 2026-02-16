@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.13.0 (2026-02-16)
+
+### Features
+
+- Add code in prep for gcal implementation
+  ([`3cca053`](https://github.com/avinash-oza/telegram-bot/commit/3cca05398db351a6bcf6d85e1d8107d597ee0f62))
+
+
 ## v1.12.0 (2026-02-16)
 
 ### Features
