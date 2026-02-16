@@ -112,12 +112,12 @@ class WebHookBuilder:
 
     @staticmethod
     def setup_handlers(application):
-        GarageDoorHandler(config_helper).add_handlers(application)
+        # GarageDoorHandler(config_helper).add_handlers(application)
         CryptoQuotesHandler(config_helper).add_handlers(application)
-        Temperatures(config_helper).add_handlers(application)
+        # Temperatures(config_helper).add_handlers(application)
         VersionHandler(config_helper).add_handlers(application)
         GoogleCalendarHandler(config_helper).add_handlers(application)
-        setup_nagios_handlers(application)
+        # setup_nagios_handlers(application)
 
         # Add handler for messages we aren't handling
         application.add_handler(
