@@ -5,12 +5,13 @@ dependencies = [
  "arrow==1.3.0",
  "python-telegram-bot==21.5",
  "requests>=2.32.3,<3",
+ "gcsa>=2.6.0",
  "python-dotenv>=1.2.1",
 ]
 description = "Add a short description here"
 name = "telegram-bot"
 requires-python = ">= 3.11"
-version = "1.11.0"
+version = "1.12.0"
 
 [build-system]
 build-backend = "hatchling.build"
