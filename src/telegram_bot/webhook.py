@@ -5,6 +5,7 @@ import logging
 import telegram
 from telegram.ext import Application, MessageHandler, filters
 
+from telegram.ext import DictPersistence
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
 from telegram_bot.handlers.garage_door import GarageDoorHandler
@@ -86,7 +87,13 @@ class WebHookBuilder:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
+        dict_persistence = DictPersistence()
+        application = (
+            Application.builder()
+            .token(TELEGRAM_TOKEN)
+            .persistence(persistence=dict_persistence)
+            .build()
+        )
 
         return application
 
