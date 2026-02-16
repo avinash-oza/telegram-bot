@@ -79,6 +79,8 @@ class GoogleCalendarHandler(HandlerBase):
             f"Added event {event_name} on {event_date} to calendar."
         )
 
+        # clean up old event data
+        context.user_data.clear()
         return ConversationHandler.END
 
     @staticmethod
