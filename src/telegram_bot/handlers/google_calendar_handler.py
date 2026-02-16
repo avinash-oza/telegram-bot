@@ -11,24 +11,22 @@ from telegram_bot.handlers.handler_base import HandlerBase
 config = ConfigHelper()
 logger = logging.getLogger(__name__)
 
-SUPPORTED_DATE_FORMATS = ["YYYY-MM-DD"]
-
 STATE_TYPING_DATE, STATE_CONFIRM_DATE, STATE_TYPING_EVENT, STATE_CONFIRMING = range(4)
+
+EVENT_DATE_INPUT_TEXT = (
+    "Please input the date of the event in the following format: YYYY-MM-DD"
+)
 
 
 class GoogleCalendarHandler(HandlerBase):
-    def add_new_event(self, message_text):
+    def _add_new_event(self, event_date, event_text):
         """
 
         :param message_text: Handles a message in the following format:
         <Event Name>$<Event Date>
         and adds it to the configured calendar
         """
-        message_parts = message_text.split("$", maxsplit=2)
-        message_parts = [s.strip() for s in message_parts]
-
-        logger.info(f"Got {message_parts=}")
-        event_title, event_date = message_parts
+        logger.info(f"Got event_date={event_date} and event_text={event_text}")
         #
         # event_date = arrow.get(event_date, SUPPORTED_DATE_FORMATS)
         # logger.info(f"Parsed {event_title=} and {event_date=}")
@@ -52,33 +50,52 @@ class GoogleCalendarHandler(HandlerBase):
         #
         # cal.add_event(event=event)
 
-        logger.info(f"Completed adding {event_title=} successfully")
+        logger.info(f"Completed adding event {event_text} on {event_date} to calendar")
 
-    # async def _handle_message(self, update: Update, context: CallbackContext):
-    #     quotes_response = self._build_response()
-    #
-    #     chat_id = update.effective_user.id
-    #     await context.bot.sendMessage(
-    #         chat_id=chat_id, text=quotes_response, parse_mode="Markdown"
-    #     )
+    async def _add_event(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        event_date = context.user_data["formatted_date"]
+        event_name = context.user_data["event_name"]
+
+        self._add_new_event(event_date, event_name)
+
+        await update.message.reply_text(
+            f"Added event {event_name} on {event_date} to calendar."
+        )
+
+        return ConversationHandler.END
+
     async def _get_event_date(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        # text = update.message.text
-        # context.user_data["choice"] = text
-        await update.message.reply_text(f"Input the event date in YYYY-MM-DD format")
+        await update.message.reply_text(EVENT_DATE_INPUT_TEXT)
 
         return STATE_TYPING_DATE
 
     async def _validate_date(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text
-        dt = datetime.datetime.strptime(text, "%Y-%m-%d")
-        formatted_date = dt.strftime("%m/%d/%Y")
+        try:
+            dt = datetime.datetime.strptime(text, "%Y-%m-%d")
+        except ValueError:
+            await update.message.reply_text(EVENT_DATE_INPUT_TEXT)
+            return STATE_TYPING_DATE
+
+        context.user_data["formatted_date"] = dt.strftime("%m/%d/%Y")
 
         await update.message.reply_text(
-            f"You input {formatted_date}. Is this correct?",
-            reply_markup=ReplyKeyboardMarkup([["Yes"], ["No"]]),
+            f"Type in the event name",
         )
+        return STATE_CONFIRMING
 
-        return ConversationHandler.END
+    async def _validate_all_details(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        event_name = update.message.text
+        context.user_data["event_name"] = event_name
+        event_date = context.user_data["formatted_date"]
+
+        await update.message.reply_text(
+            f"Adding event {event_name} on {event_date} to calendar. Type Yes to confirm.",
+            reply_markup=ReplyKeyboardMarkup([["Yes"]], one_time_keyboard=True),
+        )
+        return STATE_CONFIRMING
 
     def _get_handlers(self):
         return [
@@ -95,15 +112,20 @@ class GoogleCalendarHandler(HandlerBase):
                     "states": {
                         STATE_TYPING_DATE: [
                             MessageHandler(
-                                filters.Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}"),
+                                filters.Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}")
+                                | filters.Regex(""),
                                 self._validate_date,
                             )
                         ],
-                        STATE_TYPING_EVENT: [
+                        STATE_CONFIRMING: [
                             MessageHandler(
                                 filters.Regex("^Yes"),
-                                self._validate_date,
-                            )
+                                self._add_event,
+                            ),
+                            MessageHandler(
+                                filters.Regex("^.+$"),
+                                self._validate_all_details,
+                            ),
                         ],
                     },
                     "fallbacks": [],
