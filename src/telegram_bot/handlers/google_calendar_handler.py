@@ -10,6 +10,7 @@ from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
+from telegram_bot.handlers.decorators import check_allowed_user
 from telegram_bot.handlers.handler_base import HandlerBase
 
 config = ConfigHelper()
@@ -23,12 +24,10 @@ EVENT_DATE_INPUT_TEXT = (
 
 
 class GoogleCalendarHandler(HandlerBase):
-    def _add_new_event(self, event_date: str, event_text: str):
+    @staticmethod
+    def _add_new_event(event_date: str, event_text: str):
         """
-
-        :param message_text: Handles a message in the following format:
-        <Event Name>$<Event Date>
-        and adds it to the configured calendar
+        Adds an event to the calendar in the config
         """
         logger.info(f"Got event_date={event_date} and event_text={event_text}")
 
@@ -68,11 +67,13 @@ class GoogleCalendarHandler(HandlerBase):
 
         logger.info(f"Completed adding event {event_text} on {event_date} to calendar")
 
-    async def _add_event(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @staticmethod
+    @check_allowed_user
+    async def _add_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_date = context.user_data["formatted_date"]
         event_name = context.user_data["event_name"]
 
-        self._add_new_event(event_date, event_name)
+        GoogleCalendarHandler._add_new_event(event_date, event_name)
 
         await update.message.reply_text(
             f"Added event {event_name} on {event_date} to calendar."
@@ -80,12 +81,16 @@ class GoogleCalendarHandler(HandlerBase):
 
         return ConversationHandler.END
 
-    async def _get_event_date(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @staticmethod
+    @check_allowed_user
+    async def _get_event_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(EVENT_DATE_INPUT_TEXT)
 
         return STATE_TYPING_DATE
 
-    async def _validate_date(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @staticmethod
+    @check_allowed_user
+    async def _validate_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text
         try:
             dt = datetime.datetime.strptime(text, "%Y-%m-%d")
@@ -100,9 +105,9 @@ class GoogleCalendarHandler(HandlerBase):
         )
         return STATE_CONFIRMING
 
-    async def _validate_all_details(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
+    @staticmethod
+    @check_allowed_user
+    async def _validate_all_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_name = update.message.text.upper()
         context.user_data["event_name"] = event_name
         event_date = context.user_data["formatted_date"]
@@ -123,7 +128,7 @@ class GoogleCalendarHandler(HandlerBase):
                         MessageHandler(
                             filters.ChatType.PRIVATE
                             & filters.Regex(re.compile("^(calendar)", re.IGNORECASE)),
-                            self._get_event_date,
+                            GoogleCalendarHandler._get_event_date,
                         )
                     ],
                     "states": {
@@ -131,21 +136,21 @@ class GoogleCalendarHandler(HandlerBase):
                             MessageHandler(
                                 filters.Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}")
                                 | filters.Regex(""),
-                                self._validate_date,
+                                GoogleCalendarHandler._validate_date,
                             )
                         ],
                         STATE_CONFIRMING: [
                             MessageHandler(
                                 filters.Regex("^Yes"),
-                                self._add_event,
+                                GoogleCalendarHandler._add_event,
                             ),
                             MessageHandler(
                                 filters.Regex("^No"),
-                                self._validate_date,
+                                GoogleCalendarHandler._validate_date,
                             ),
                             MessageHandler(
                                 filters.Regex("^.+$"),
-                                self._validate_all_details,
+                                GoogleCalendarHandler._validate_all_details,
                             ),
                         ],
                     },
@@ -155,7 +160,7 @@ class GoogleCalendarHandler(HandlerBase):
         ]
 
 
-if __name__ == "__main__":
-    # for testing
-    handler = GoogleCalendarHandler(ConfigHelper())
-    handler._add_new_event("2024-06-30", "Test Event")
+# if __name__ == "__main__":
+#     # for testing
+#     handler = GoogleCalendarHandler(ConfigHelper())
+#     handler._add_new_event("2024-06-30", "Test Event")
