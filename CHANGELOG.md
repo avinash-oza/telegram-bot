@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.12.0 (2026-02-16)
+
+### Features
+
+- Add code in prep for gcal implementation
+  ([#37](https://github.com/avinash-oza/telegram-bot/pull/37),
+  [`57d7266`](https://github.com/avinash-oza/telegram-bot/commit/57d7266a4b32bada63bd2ec060147b6a4578e641))
+
+- First draft of adding an event to google calendar
+  ([#37](https://github.com/avinash-oza/telegram-bot/pull/37),
+  [`57d7266`](https://github.com/avinash-oza/telegram-bot/commit/57d7266a4b32bada63bd2ec060147b6a4578e641))
+
+
 ## v1.11.0 (2026-01-25)
 
 ### Features
