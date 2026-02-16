@@ -3,6 +3,7 @@ from functools import wraps
 
 from telegram import Update
 from telegram.ext import CallbackContext
+from telegram.ext import ConversationHandler
 
 from telegram_bot.config_helper import ConfigHelper
 
@@ -20,7 +21,7 @@ def check_allowed_user(func):
         if user_id not in ALLOWED_USERS:
             logger.error(f"User {user_id} is not in the allowed users list")
             await context.bot.sendMessage(chat_id=user_id, text="Not authorized")
-            return
+            return ConversationHandler.END # for ConversationHandlers
         return func(update, context, *args, **kwargs)
 
     return wrapped
