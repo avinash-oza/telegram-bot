@@ -2,6 +2,21 @@
 
 <!-- version list -->
 
+## v1.14.0 (2026-02-23)
+
+### Chores
+
+- **deps**: Bump protobuf from 6.33.4 to 6.33.5
+  ([#38](https://github.com/avinash-oza/telegram-bot/pull/38),
+  [`77a1842`](https://github.com/avinash-oza/telegram-bot/commit/77a18429881672b6db593000de4a1c31dfa4bc12))
+
+### Features
+
+- Read local config when running in dev mode
+  ([#40](https://github.com/avinash-oza/telegram-bot/pull/40),
+  [`dfc66fb`](https://github.com/avinash-oza/telegram-bot/commit/dfc66fb4cb7937b99ea26949e359eb8c3c4ad62a))
+
+
 ## v1.13.0 (2026-02-16)
 
 ### Features
