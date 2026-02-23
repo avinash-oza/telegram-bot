@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Any, Dict
 
 import boto3
 from dotenv import load_dotenv
@@ -13,9 +14,7 @@ logger = logging.getLogger(__name__)
 class ConfigHelper:
     class _ConfigHelper:
         def __init__(self):
-            self._s3 = boto3.client("s3")
             self._env_name = os.environ["env_name"].lower()
-            self._config_bucket = os.environ["config_bucket"]
             self.__config = None
             logger.info("Creating classes")
 
@@ -23,14 +22,31 @@ class ConfigHelper:
             return self.config[section][value]
 
         @property
-        def config(self):
+        def config(self) -> Dict[str, Any]:
             if self.__config is None:
-                config_key = f"telegram-bot/{self._env_name}.json"
-                config_bytes = self._s3.get_object(
-                    Bucket=self._config_bucket, Key=config_key
-                )["Body"]
-                self.__config = json.load(config_bytes)
+                if self._env_name == "prod":
+                    config_dict = self._read_config_from_s3()
+                    self.__config = config_dict
+                else:
+                    logger.warning(
+                        "Reading config from local file for non-prod environment"
+                    )
+                    config_dict = self._read_config_from_local_file()
+                    self.__config = config_dict
+
             return self.__config
+
+        def _read_config_from_local_file(self) -> Dict[str, Any]:
+            config_path = f"../{self._env_name}.json"
+            with open(config_path, "r") as f:
+                return json.loads(f.read())
+
+        def _read_config_from_s3(self) -> Dict[str, Any]:
+            s3 = boto3.client("s3")
+            config_bucket = os.environ["config_bucket"]
+            config_key = f"telegram-bot/{self._env_name}.json"
+            config_bytes = s3.get_object(Bucket=config_bucket, Key=config_key)["Body"]
+            return json.load(config_bytes)
 
     instance = None
 
