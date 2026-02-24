@@ -7,11 +7,8 @@ from telegram.ext import Application, MessageHandler, filters
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
-from telegram_bot.handlers.garage_door import GarageDoorHandler
 from telegram_bot.handlers.google_calendar_handler import GoogleCalendarHandler
 from telegram_bot.handlers.misc_handlers import VersionHandler, unknown_handler
-from telegram_bot.handlers.nagios.menu import setup_nagios_handlers
-from telegram_bot.handlers.temperature_data import Temperatures
 
 config_helper = ConfigHelper()
 
@@ -68,7 +65,7 @@ class WebHookBuilder:
 
         elif event.get("httpMethod") == "GET" and event.get("path") == "/setWebHook":
             logger.info("Setting webhook")
-            self._set_webhook(event, context, application.bot)
+            await self._set_webhook(event, context, application.bot)
 
         return OK_RESPONSE
 
@@ -91,7 +88,7 @@ class WebHookBuilder:
         return application
 
     @staticmethod
-    def _set_webhook(event, context, bot):
+    async def _set_webhook(event, context, bot):
         """
         Sets the Telegram bot webhook.
         """
@@ -102,7 +99,7 @@ class WebHookBuilder:
         url = f"https://{event.get('headers').get('Host')}/"
 
         logger.info(f"Setting webhook url={url}")
-        webhook = bot.set_webhook(url)
+        webhook = await bot.set_webhook(url)
 
         if webhook:
             logger.info(f"Successfully set webhook")
