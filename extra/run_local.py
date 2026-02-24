@@ -14,5 +14,7 @@ if __name__ == "__main__":
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
     WebHookBuilder.setup_handlers(application)
+    # For setting the webhook in asyncmode
+    # asyncio.run(WebHookBuilder._set_webhook({}, {}, application.bot))
 
     application.run_polling()
