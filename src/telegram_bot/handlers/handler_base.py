@@ -13,14 +13,33 @@ class HandlerBase:
     def add_handlers(self, application):
         # make sure all handlers check that user is allowed
         for klass, kwargs in self._get_handlers():
-            if klass is ConversationHandler:
-                # These need to be wrapped separately since they have multiple callbacks
-                application.add_handler(klass(**kwargs))
+            if klass is not ConversationHandler:
+                callback = kwargs.pop("callback")
+                callback = check_allowed_user(callback)
+                application.add_handler(klass(callback=callback, **kwargs))
                 continue
 
-            callback = kwargs.pop("callback")
-            callback = check_allowed_user(callback)
-            application.add_handler(klass(callback=callback, **kwargs))
+            # ConversationHandlers are a special case since they have multiple callbacks (entry points, states, fallbacks)
+            # Wrap all callbacks in the conversation states
+            if "states" in kwargs:
+                for state_key, handlers_list in kwargs["states"].items():
+                    for handler in handlers_list:
+                        if hasattr(handler, "callback"):
+                            handler.callback = check_allowed_user(handler.callback)
+
+            # Wrap entry point callbacks
+            if "entry_points" in kwargs:
+                for handler in kwargs["entry_points"]:
+                    if hasattr(handler, "callback"):
+                        handler.callback = check_allowed_user(handler.callback)
+
+            # Wrap fallback callbacks
+            if "fallbacks" in kwargs:
+                for handler in kwargs["fallbacks"]:
+                    if hasattr(handler, "callback"):
+                        handler.callback = check_allowed_user(handler.callback)
+
+            application.add_handler(klass(**kwargs))
 
     @abc.abstractmethod
     def _get_handlers(self):
