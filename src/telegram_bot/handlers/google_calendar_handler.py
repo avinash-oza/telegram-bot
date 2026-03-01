@@ -116,6 +116,8 @@ class GoogleCalendarHandler(HandlerBase):
             (
                 ConversationHandler,
                 {
+                    "persistent": True,
+                    "name": "calendar_conversation",
                     "entry_points": [
                         MessageHandler(
                             filters.ChatType.PRIVATE

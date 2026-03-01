@@ -1,4 +1,4 @@
-from telegram.ext import Application
+from telegram.ext import Application, DictPersistence
 
 from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.webhook import WebHookBuilder
@@ -11,7 +11,13 @@ if __name__ == "__main__":
         msg = "The TELEGRAM_BOT_API_KEY must be set"
         raise RuntimeError(msg)
 
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    my_persistence = DictPersistence()
+    application = (
+        Application.builder()
+        .persistence(persistence=my_persistence)
+        .token(TELEGRAM_TOKEN)
+        .build()
+    )
 
     WebHookBuilder(config_helper).setup_handlers(application)
     # For setting the webhook in asyncmode
