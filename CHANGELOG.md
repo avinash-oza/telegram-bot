@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.15.0 (2026-03-01)
+
+### Chores
+
+- Fix bug in async code for setting webhook
+  ([#41](https://github.com/avinash-oza/telegram-bot/pull/41),
+  [`466c7f6`](https://github.com/avinash-oza/telegram-bot/commit/466c7f64eaab0f20d6927b6a25478df8dc0145fc))
+
+- Remove unused ConfigHelper ([#43](https://github.com/avinash-oza/telegram-bot/pull/43),
+  [`22ec544`](https://github.com/avinash-oza/telegram-bot/commit/22ec5442a07c42b76d035edea9f90dfbc074df34))
+
+- **deps-dev**: Bump awscli from 1.43.2 to 1.44.38
+  ([#42](https://github.com/avinash-oza/telegram-bot/pull/42),
+  [`ca8b092`](https://github.com/avinash-oza/telegram-bot/commit/ca8b09296eb480ad4993ef77aeab03ea9f5b3993))
+
+### Features
+
+- Change to use one ConfigHelper vs multiple
+  ([#43](https://github.com/avinash-oza/telegram-bot/pull/43),
+  [`22ec544`](https://github.com/avinash-oza/telegram-bot/commit/22ec5442a07c42b76d035edea9f90dfbc074df34))
+
+- Switch away from handling ConversationHandler in the class and instead handle in the handler base
+  ([#43](https://github.com/avinash-oza/telegram-bot/pull/43),
+  [`22ec544`](https://github.com/avinash-oza/telegram-bot/commit/22ec5442a07c42b76d035edea9f90dfbc074df34))
+
+
 ## v1.14.0 (2026-02-23)
 
 ### Chores
