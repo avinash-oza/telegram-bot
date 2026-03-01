@@ -4,8 +4,8 @@ from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.webhook import WebHookBuilder
 
 if __name__ == "__main__":
-    c = ConfigHelper()
-    TELEGRAM_TOKEN = c.get("telegram", "api_key")
+    config_helper = ConfigHelper()
+    TELEGRAM_TOKEN = config_helper.get("telegram", "api_key")
 
     if not TELEGRAM_TOKEN:
         msg = "The TELEGRAM_BOT_API_KEY must be set"
@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    WebHookBuilder.setup_handlers(application)
+    WebHookBuilder(config_helper).setup_handlers(application)
     # For setting the webhook in asyncmode
     # asyncio.run(WebHookBuilder._set_webhook({}, {}, application.bot))
 

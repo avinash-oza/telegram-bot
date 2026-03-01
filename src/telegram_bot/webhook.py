@@ -10,8 +10,6 @@ from telegram_bot.handlers.crypto_quotes_handler import CryptoQuotesHandler
 from telegram_bot.handlers.google_calendar_handler import GoogleCalendarHandler
 from telegram_bot.handlers.misc_handlers import VersionHandler, unknown_handler
 
-config_helper = ConfigHelper()
-
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
     # `.basicConfig` does not execute. Thus we set the level directly.
@@ -30,10 +28,14 @@ ERROR_RESPONSE = {"statusCode": 400, "body": json.dumps("Oops, something went wr
 
 
 def webhook(event, context):
-    return WebHookBuilder().run(event, context)
+    config_helper = ConfigHelper()
+    return WebHookBuilder(config_helper).run(event, context)
 
 
 class WebHookBuilder:
+    def __init__(self, config_helper):
+        self._config_helper = config_helper
+
     def run(self, event, context):
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self._webhook(event, context))
@@ -69,15 +71,14 @@ class WebHookBuilder:
 
         return OK_RESPONSE
 
-    @staticmethod
-    def _create_application():
+    def _create_application(self):
         """
         Configures the bot with a Telegram Token.
 
         Returns a bot instance.
         """
 
-        TELEGRAM_TOKEN = config_helper.get("telegram", "api_key")
+        TELEGRAM_TOKEN = self._config_helper.get("telegram", "api_key")
         if not TELEGRAM_TOKEN:
             msg = "The TELEGRAM_BOT_API_KEY must be set"
             logger.error(msg)
@@ -107,13 +108,12 @@ class WebHookBuilder:
 
         return ERROR_RESPONSE
 
-    @staticmethod
-    def setup_handlers(application):
-        # GarageDoorHandler(config_helper).add_handlers(application)
-        CryptoQuotesHandler(config_helper).add_handlers(application)
-        # Temperatures(config_helper).add_handlers(application)
-        VersionHandler(config_helper).add_handlers(application)
-        GoogleCalendarHandler(config_helper).add_handlers(application)
+    def setup_handlers(self, application):
+        # GarageDoorHandler(self._config_helper).add_handlers(application)
+        CryptoQuotesHandler(self._config_helper).add_handlers(application)
+        # Temperatures(self._config_helper).add_handlers(application)
+        VersionHandler(self._config_helper).add_handlers(application)
+        GoogleCalendarHandler(self._config_helper).add_handlers(application)
         # setup_nagios_handlers(application)
 
         # Add handler for messages we aren't handling

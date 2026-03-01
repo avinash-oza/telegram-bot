@@ -2,7 +2,6 @@ import logging
 from functools import wraps
 
 from telegram import Update
-from telegram.ext import CallbackContext
 from telegram.ext import ConversationHandler
 
 from telegram_bot.config_helper import ConfigHelper
@@ -14,15 +13,18 @@ ALLOWED_USERS = [str(s) for s in c.get("telegram", "allowed_users")]
 
 
 # adapted from telegram-bot snippets
+
+
 def check_allowed_user(func):
+    """Decorator for standalone callbacks (non-instance methods)."""
+
     @wraps(func)
-    def wrapped(update: Update, context: CallbackContext, *args, **kwargs):
+    async def wrapped(update: Update, context, *args, **kwargs):
         user_id = str(update.effective_user.id)
         if user_id not in ALLOWED_USERS:
-            # TODO: fix this to not raise exception on invalid users
             logger.error(f"User {user_id} is not in the allowed users list")
-            context.bot.sendMessage(chat_id=user_id, text="Not authorized")
-            return ConversationHandler.END # for ConversationHandlers
-        return func(update, context, *args, **kwargs)
+            await context.bot.send_message(chat_id=user_id, text="Not authorized")
+            return ConversationHandler.END  # for ConversationHandlers
+        return await func(update, context, *args, **kwargs)
 
     return wrapped

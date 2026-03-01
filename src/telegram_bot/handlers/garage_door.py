@@ -6,10 +6,8 @@ import requests
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext, CallbackQueryHandler, MessageHandler, filters
 
-from telegram_bot.config_helper import ConfigHelper
 from telegram_bot.handlers.handler_base import HandlerBase
 
-c = ConfigHelper()
 logger = logging.getLogger(__name__)
 
 
