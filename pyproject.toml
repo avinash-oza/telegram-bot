@@ -6,7 +6,7 @@ dependencies = [
  "python-telegram-bot==21.5",
  "requests>=2.32.3,<3",
  "gcsa>=2.6.0",
- "python-dotenv>=1.2.1",
+ "python-dotenv>=1.2.2",
 ]
 description = "Add a short description here"
 name = "telegram-bot"
