@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Setup | Checkout Repository on Release Branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
 
@@ -62,7 +62,7 @@ jobs:
           aws-region: us-east-1
 
       - name: build package with uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9
         with:
           enable-cache: true
 
