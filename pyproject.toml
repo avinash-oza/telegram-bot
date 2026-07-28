@@ -62,7 +62,7 @@ upload_to_vcs_release = true
 
 [dependency-groups]
 dev = [
-    "awscli>=1.43.2",
+    "awscli>=1.44.78",
     "black>=24.10.0",
     "build>=1.3.0",
     "pre-commit>=4.5.1",
